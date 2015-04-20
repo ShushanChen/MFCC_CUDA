@@ -101,3 +101,22 @@ double p2cost(double p) {
 double cost2p(double cost) {
     return pow(e, -cost);
 }
+
+void matrix2vector(const Matrix<double> & data, double *vec){
+    int rowSize=data[0].size();
+    for(int i=0; i<data.size(); i++){
+        for(int j=0; j<rowSize; j++){
+            *vec = data[i][j];
+            vec++;
+        }
+    }
+}
+
+void vector2matrix(double *vec, Matrix<double> & data){
+    for(int i=0; i< data.size(); i++){
+        for(int j=0; j<data[0].size(); j++){
+            data[i][j] = *vec;
+            vec++;
+        }
+    }    
+}

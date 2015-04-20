@@ -222,6 +222,7 @@ SP_RESULT FeatureExtractor::powSpectrum(Matrix<double> &powSpec, \
         }
     }
 
+    double calculationStartT = wtime();
     double startT, finishT;
     startT = wtime();
     //cudaMalloc( (void **) &d_SpeechSignal, memSize*2 );
@@ -239,6 +240,9 @@ SP_RESULT FeatureExtractor::powSpectrum(Matrix<double> &powSpec, \
     windowFFT_cu<<< dimGrid, dimBlock, sharedMem >>>(d_SpeechSignal, frameNum, frameSize, 1, selIdx);
     cudaMemcpy(SpeechSignal, d_SpeechSignal+memSize*selIdx, memSize, cudaMemcpyDeviceToHost);
     cudaMemcpy(SpeechSignal, d_SpeechSignal, memSize, cudaMemcpyDeviceToHost);
+    
+    double calculationEndT = wtime();
+    printf("PowerSpectrum calculation time: %lf\n", calculationEndT - calculationStartT - (finishT - startT));
     
     int resSize=frameSize/2+1, resultOffset;
     for(int i=0; i<frameNum; i++){
@@ -365,7 +369,7 @@ SP_RESULT FeatureExtractor::getMelLog(std::vector<double> & melLog, \
 SP_RESULT FeatureExtractor::MatrixMul01(Matrix<double> & melLog, \
         Matrix<double> &wts, \
         Matrix<double> & powSpec) {
-    /*double *h_melLog, h_wts, h_powSpec;
+    double *h_melLog, *h_wts, *h_powSpec;
     double *d_melLog, *d_wts, *d_powSpec;
     
     size_t memSize1 = wts.size()*powSpec.size()*sizeof(double),
@@ -376,16 +380,65 @@ SP_RESULT FeatureExtractor::MatrixMul01(Matrix<double> & melLog, \
     h_wts = (double *)malloc(memSize2);
     h_powSpec = (double *)malloc(memSize3);
     
+    matrix2vector(wts, h_wts);
+    matrix2vector(powSpec, h_powSpec);
+    
+  //  for(int i=0; i<wts.size(); i++){
+  //      int offset = wts[0].size()*i;
+  //      for(int j=0; j<wts[0].size(); j++){
+  //          if(wts[i][j]!=*(h_wts+offset+j))
+  //              std::cout << "\n WTS not equal \n";
+  //      }
+  //  }
+  //  for(int i=0; i<powSpec.size(); i++){
+  //      int offset = powSpec[0].size()*i;
+  //      for(int j=0; j<powSpec[0].size(); j++){
+  //          if(powSpec[i][j]!=*(h_powSpec+offset+j))
+  //              std::cout << "\n powSpec not equal \n";
+  //      }
+  //  }
+  //  
+    double startT = wtime();
+    
     cudaMalloc((void **)&d_melLog, memSize1);
     cudaMalloc((void **)&d_wts, memSize2);
-    cudaMalloc((void **)&d_powSpec, memSize3);*/
+    cudaMalloc((void **)&d_powSpec, memSize3);
+    
+    cudaMemcpy(d_wts, h_wts, memSize2, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_powSpec, h_powSpec, memSize3, cudaMemcpyHostToDevice);
 
+    int bucketNum = (((powSpec.size()-1)/BLOCK_SIZE+1)-1)/COL_STEP+1;
+    int blockNum = (wts.size()-1)/BLOCK_SIZE+1;
+    
+    dim3 dimBlock(BLOCK_SIZE, BLOCK_SIZE);
+    dim3 dimGrid(bucketNum,blockNum);
     int r = wts.size(), c = powSpec.size();
+    
+    //printf("%d %d %d\n", r, c, wts[0].size());
+    matrix_mul_kernel<<<dimGrid,dimBlock>>>(d_wts, d_powSpec, d_melLog, r, wts[0].size(), c);
+
+    cudaMemcpy(h_melLog, d_melLog, memSize1, cudaMemcpyDeviceToHost);
+    
+    double endT = wtime();
+    printf("mel filtering calculation time %lf\n", endT-startT);
+//    printf("%d %d %d %d\n", wts.size(), wts[0].size(), powSpec[0].size(), powSpec.size());
     melLog.resize(r);
     for(int i = 0;i < r;i++)
         melLog[i].resize(c);
 
-      
+    vector2matrix(h_melLog, melLog);
+    
+    /*
+    for(int i = 0;i < r;i++) {
+        for(int j = 0;j < c;j++) {
+            printf("%lf ", melLog[i][j]); 
+        }
+        puts("");
+    }
+    */
+    
+    
+    /*
     for(int i = 0;i < r;i++) {
         for(int j = 0;j < c;j++) {
             melLog[i][j] = 0.0;
@@ -394,27 +447,15 @@ SP_RESULT FeatureExtractor::MatrixMul01(Matrix<double> & melLog, \
                 melLog[i][j] += wts[i][k] * powSpec[j][k];
         }
     }
-    
-
-    
-    /*
-    ThreadPool threadPool(threadNum);
-
-    for(int i = 0;i < r;i++) {
-        struct sp_task task_struct;
-        struct mul_task_info *task_info = new mul_task_info;
-        
-        task_info->wts = &(wts[i]);
-        task_info->powSpec = &powSpec;
-        task_info->melLog = &(melLog[i]);
-
-        task_struct.func = mulTask;
-        task_struct.in   = task_info;
-
-        threadPool.addTask(task_struct);
-    }
-    threadPool.run();
     */
+
+    free(h_melLog);
+    free(h_wts);
+    free(h_powSpec);
+    cudaFree(d_melLog);
+    cudaFree(d_wts);
+    cudaFree(d_powSpec);
+    
     return SP_SUCCESS;
 }
 SP_RESULT FeatureExtractor::fft2MelLog(int nfft, \

@@ -11,6 +11,7 @@
 
 #include <iostream>
 #include <complex>
+#include "configure_basic.h"
 
 #ifndef __SpeechRecongnitionSystem__PI__
 #define __SpeechRecongnitionSystem__PI__
@@ -34,6 +35,10 @@ double logInsideDist(double a, double b);
 double p2cost(double p);
 
 double cost2p(double cost);
+
+void matrix2vector(const Matrix<double> & data, double *vec);
+
+void vector2matrix(double *veci, Matrix<double> & data);
 
 #define e 2.718281828459
 #endif /* defined(__SpeechRecongnitionSystem__mathtool__) */

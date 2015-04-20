@@ -7,7 +7,7 @@
 #include "mathtool.h"
 
 #define d_type double
-#define BLOCK_SIZE 32
+#define BLOCK_SIZE 16
 
 #define K_UNROLL_STEP 32 // [1,2,4,8,16]
 
@@ -35,7 +35,7 @@
 //#endif
 
 __global__ 
-void matrix_mul_kernel(d_type *sq_matrix_1, d_type *sq_matrix_2, d_type *sq_matrix_result, int dimension);
+void matrix_mul_kernel(d_type *sq_matrix_1, d_type *sq_matrix_2, d_type *sq_matrix_result, int dim_a, int dim_b, int dim_c);
     
 __global__
 void windowFFT_cu(cp *d_SpeechSignal, int frameNum, int frameSize, int f, int selIdx, double arg=PI);

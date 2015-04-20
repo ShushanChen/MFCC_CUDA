@@ -1,65 +1,83 @@
 
 #include "FeatureExtractorTool.h"
 
+//Y__global__ 
+//Yvoid matrix_mul_kernel(d_type *sq_matrix_1, d_type *sq_matrix_2, d_type *sq_matrix_result, int dim_a, int dim_b, int dim_c) 
+//Y{
+//Y    int row = by * dy + ty;
+//Y    int col[COL_STEP]; 
+//Y
+//Y    col[0] = COL_STEP * bx * dx + tx;
+//Y    for(int i = 1;i < COL_STEP;i++)
+//Y        col[i] = col[i-1] + BLOCK_SIZE;
+//Y
+//Y    for(int i  =0;i < COL_STEP;i++) 
+//Y        if(row < dim_a && col[i] < dim_c)
+//Y            sq_matrix_result[row * dim_c + col[i]] = 0;
+//Y    
+//Y    for(int k = 0;k < dim_b;k++) {
+//Y        for(int i  =0;i < COL_STEP;i++) 
+//Y            if(row < dim_a && col[i] < dim_c)
+//Y                sq_matrix_result[row * dim_c + col[i]] += sq_matrix_1[row*dim_b + k] * sq_matrix_2[col[i] * dim_b + k];
+//Y    }
+//Y}
+
+
 __global__ 
-void matrix_mul_kernel(float *sq_matrix_1, float *sq_matrix_2, float *sq_matrix_result, int dimension) 
+void matrix_mul_kernel(d_type *sq_matrix_1, d_type *sq_matrix_2, d_type *sq_matrix_result, int dim_a, int dim_b, int dim_c) 
 {
-    /** 
-     *  A cuda thread will calculate 4 results, result[row][col[0~4]]
-     */
+    //A cuda thread will calculate 4 results, result[row][col[0~4]]
     int row = by * dy + ty;
     int col[COL_STEP]; 
+    int col_mul_dimb[COL_STEP]; 
 
     col[0] = COL_STEP * bx * dx + tx;
     col[1] = col[0] + BLOCK_SIZE;
     col[2] = col[1] + BLOCK_SIZE;
     col[3] = col[2] + BLOCK_SIZE;
+    
+    col_mul_dimb[0] = col[0] * dim_b;
+    col_mul_dimb[1] = col[1] * dim_b;
+    col_mul_dimb[2] = col[2] * dim_b;
+    col_mul_dimb[3] = col[3] * dim_b;
 
-    /**
-     *  One shared copy of sq_matrix_1 can be used to calculate 4 blocks,
-     *  increase the utilization of share memory
-     */
-    __shared__ float s_a[BLOCK_SIZE][BLOCK_SIZE];
-    __shared__ float s_b[BLOCK_SIZE][BLOCK_SIZE][COL_STEP];
+    //One shared copy of sq_matrix_1 can be used to calculate 4 blocks,
+    //increase the utilization of share memory
+    __shared__ d_type s_a[BLOCK_SIZE][BLOCK_SIZE];
+    __shared__ d_type s_b[BLOCK_SIZE][BLOCK_SIZE][COL_STEP];
 
-    float val[COL_STEP] = {0.0, 0.0, 0.0, 0.0};
+    d_type val[COL_STEP] = {0.0, 0.0, 0.0, 0.0};
 
-    int rowIdx = row * dimension;
+    int rowIdx = row * dim_c;
+    int rowAIdx = row * dim_b; 
 
-    /**
-     * pre calculate index of matrixes. 
-     */
-    int sq_matrix_1_index = rowIdx + tx;
-    int sq_matrix_2_index = (ty) * dimension; 
+    //pre calculate index of matrixes. 
+    int sq_matrix_1_index = rowAIdx + tx;
+    int sq_matrix_2_index = (ty) ; 
     int sq_matrix_1_step = BLOCK_SIZE;
-    int sq_matrix_2_step = BLOCK_SIZE * dimension;
+    int sq_matrix_2_step = BLOCK_SIZE ;
 
     int ks, k;
 
-    /**
-     * pre fetch values into local memory. 
-     */
-    float preFetchA;
-    float * sb_sq_matrix_p = &(s_b[ty][tx][0]);
+    //pre fetch values into local memory. 
+    d_type preFetchA;
+    d_type * sb_sq_matrix_p = &(s_b[ty][tx][0]);
 
     int K_STEP = COL_STEP * BLOCK_SIZE;
     int ceil_ks;
 
-    float *s_b_sq_matrix_used;
+    d_type *s_b_sq_matrix_used;
 
-    /**
-     * ks is BLOCK_SIZE step length, and one iteration will calculate 4 block
-     */
-    for(ks = 0; ks <= dimension-BLOCK_SIZE; ks += BLOCK_SIZE, sq_matrix_1_index += sq_matrix_1_step, sq_matrix_2_index += sq_matrix_2_step) {
-        /**
-         * fetch matrix1 and matrix2 into shared memory
-         */
+     //ks is BLOCK_SIZE step length, and one iteration will calculate 4 block
+    for(ks = 0; ks <= dim_b-BLOCK_SIZE; ks += BLOCK_SIZE, sq_matrix_1_index += sq_matrix_1_step, sq_matrix_2_index += sq_matrix_2_step) {
+
+        //fetch matrix1 and matrix2 into shared memory
         s_a[ty][tx] = sq_matrix_1[sq_matrix_1_index];
 
-        sb_sq_matrix_p[0] = sq_matrix_2[sq_matrix_2_index + col[0]];
-        sb_sq_matrix_p[1] = sq_matrix_2[sq_matrix_2_index + col[1]];
-        sb_sq_matrix_p[2] = sq_matrix_2[sq_matrix_2_index + col[2]];
-        sb_sq_matrix_p[3] = sq_matrix_2[sq_matrix_2_index + col[3]];
+        sb_sq_matrix_p[0] = sq_matrix_2[sq_matrix_2_index + col_mul_dimb[0]];
+        sb_sq_matrix_p[1] = sq_matrix_2[sq_matrix_2_index + col_mul_dimb[1]];
+        sb_sq_matrix_p[2] = sq_matrix_2[sq_matrix_2_index + col_mul_dimb[2]];
+        sb_sq_matrix_p[3] = sq_matrix_2[sq_matrix_2_index + col_mul_dimb[3]];
 
         __syncthreads();
 
@@ -77,26 +95,24 @@ void matrix_mul_kernel(float *sq_matrix_1, float *sq_matrix_2, float *sq_matrix_
         __syncthreads();
     }
 
-    /**
-     * because the dimension is not always power of 2, we need to add a tail for the rest calculation
-     */
-    if(ks < dimension) {
-        if(col[0] < dimension && row < dimension)
+    //because the dimension is not always power of 2, we need to add a tail for the rest calculation
+    if(ks < dim_b) {
+        if(col[0] < dim_c && row < dim_a)
             s_a[ty][tx] = sq_matrix_1[sq_matrix_1_index];
 
-        if(col[0] < dimension && row < dimension) 
-            sb_sq_matrix_p[0] = sq_matrix_2[sq_matrix_2_index + col[0]];
-        if(col[1] < dimension && row < dimension) 
-            sb_sq_matrix_p[1] = sq_matrix_2[sq_matrix_2_index + col[1]];
-        if(col[2] < dimension && row < dimension) 
-            sb_sq_matrix_p[2] = sq_matrix_2[sq_matrix_2_index + col[2]];
-        if(col[3] < dimension && row < dimension) 
-            sb_sq_matrix_p[3] = sq_matrix_2[sq_matrix_2_index + col[3]];
+        if(col[0] < dim_c && row < dim_a) 
+            sb_sq_matrix_p[0] = sq_matrix_2[sq_matrix_2_index + col_mul_dimb[0]];
+        if(col[1] < dim_c && row < dim_a) 
+            sb_sq_matrix_p[1] = sq_matrix_2[sq_matrix_2_index + col_mul_dimb[1]];
+        if(col[2] < dim_c && row < dim_a) 
+            sb_sq_matrix_p[2] = sq_matrix_2[sq_matrix_2_index + col_mul_dimb[2]];
+        if(col[3] < dim_c && row < dim_a) 
+            sb_sq_matrix_p[3] = sq_matrix_2[sq_matrix_2_index + col_mul_dimb[3]];
 
         __syncthreads();
         s_b_sq_matrix_used = &(s_b[0][tx][0]) - K_STEP;
 
-        ceil_ks = dimension-ks;
+        ceil_ks = dim_b-ks;
 
 #pragma unroll 32
         for(k=0; k < ceil_ks; k++) {
@@ -110,23 +126,22 @@ void matrix_mul_kernel(float *sq_matrix_1, float *sq_matrix_2, float *sq_matrix_
         __syncthreads();
     }
 
-    /**
-     * Write the results back to global memory
-     */
-    if(row >= dimension) return;
+    // Write the results back to global memory
+    if(row >= dim_a) return;
 
-    if(col[0] < dimension)
+    if(col[0] < dim_c)
         sq_matrix_result[rowIdx + col[0]] = val[0];
-    if(col[1] < dimension)
+    if(col[1] < dim_c)
         sq_matrix_result[rowIdx + col[1]] = val[1];
-    if(col[2] < dimension)
+    if(col[2] < dim_c)
         sq_matrix_result[rowIdx + col[2]] = val[2];
-    if(col[3] < dimension)
+    if(col[3] < dim_c)
         sq_matrix_result[rowIdx + col[3]] = val[3];
 }
 
+
 __global__
-void windowFFT_cu(cp *d_SpeechSignal, int frameNum, int frameSize, int f, int selIdx, double arg){
+void windowFFT_cu(cp *d_SpeechSignal, int frameNum, int frameSize, int f, int selIdx, double arg) {
     extern __shared__ char s_SpeechSignal[];
     int p, i, j, rollIdx=0, oldRollIdx;
     size_t innerIdx = threadIdx.x % frameSize, 
@@ -147,7 +162,7 @@ void windowFFT_cu(cp *d_SpeechSignal, int frameNum, int frameSize, int f, int se
     *(s_signal[0]+innerIdx) = *(d_SpeechSignal+frame_offset+innerIdx);
     __syncthreads();
 
-    for(int k = frameSize>>1; k; k>>=1, arg*=0.5){
+    for(int k = frameSize>>1; k; k>>=1, arg*=0.5) {
         rollIdx ^= 1;
         oldRollIdx = rollIdx^1;
 
