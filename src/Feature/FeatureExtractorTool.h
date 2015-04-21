@@ -38,10 +38,24 @@ __global__
 void matrix_mul_kernel(d_type *sq_matrix_1, d_type *sq_matrix_2, d_type *sq_matrix_result, int dim_a, int dim_b, int dim_c);
     
 __global__
-void windowFFT_cu(cp *d_SpeechSignal, int frameNum, int frameSize, int f, int selIdx, double arg=PI);
+void windowFFT_cu(FEATURE_DATA *d_SpeechSignal_real, FEATURE_DATA *d_SpeechSignal_imag, int frameNum, int frameSize, int f, int selIdx, double arg=PI);
 
 __global__ 
 void fft_cu_part(cp *d_SpeechSignal, int n, int f, double arg=PI);
+
+__device__ 
+void mulComplex(FEATURE_DATA *output, FEATURE_DATA *input1, FEATURE_DATA *input2);
+
+__device__ 
+void addComplex(FEATURE_DATA *output, FEATURE_DATA *input1, FEATURE_DATA *input2);
+
+__device__
+void getRealImag(FEATURE_DATA& real, FEATURE_DATA& imag, const FEATURE_DATA *input);
+
+__device__
+void getPolarValue(FEATURE_DATA length, FEATURE_DATA angle, FEATURE_DATA* output);
+
+
 
 __device__ 
 void mulComplex(cp *output, cp *input1, cp *input2);
@@ -52,7 +66,7 @@ void addComplex(cp *output, cp *input1, cp *input2);
 __device__
 void getRealImag(double& real, double& imag, const cp *input);
 
-__device__
-void getPolarValue(double length, double angle, double* output);
+//__device__
+//void getPolarValue(double length, double angle, double* output);
 
 #endif

@@ -54,60 +54,63 @@ SP_RESULT FeatureExtractor::exFeatures(const RawData *data, \
     double totalTime = 0;
 
     startT = wtime();
-    res = preEmph(emp_data, data->getData(), data->getFrameNum(), preEmpFactor);
+    //res = preEmph(emp_data, data->getData(), data->getFrameNum(), preEmpFactor);
+    res = preEmph(e_emp_data, data->getData(), data->getFrameNum(), preEmpFactor);
     finishT = wtime();
     double t_preemp = finishT-startT;
     totalTime += t_preemp;
 
     startT = wtime();
-    res = windowing(windows, emp_data, winTime, stepTime, sampleRate, winFunc);
+    //res = windowing(windows, emp_data, winTime, stepTime, sampleRate, winFunc);
+    res = windowing(e_windows, e_emp_data, winTime, stepTime, sampleRate, winFunc);
     finishT = wtime();
     double t_window = finishT-startT;
     totalTime += t_window;
 
-    startT = wtime();
-    fftPadding(windows);
-    finishT = wtime();
-    double t_fftpad = finishT-startT;
-    totalTime += t_fftpad;
+    //startT = wtime();
+    //fftPadding(windows);
+    //finishT = wtime();
+    //double t_fftpad = finishT-startT;
+    //totalTime += t_fftpad;
 
     startT = wtime();
-    powSpectrum(powSpec, windows);
+    //powSpectrum(powSpec, windows);
+    powSpectrum(e_powSpec, e_windows);
     finishT = wtime();
     double t_powSpec = finishT-startT;
     totalTime += t_powSpec;
 
-    if(powSpec.size() == 0) return SP_SUCCESS;
+    //if(powSpec.size() == 0) return SP_SUCCESS;
 
-    int nfft = (powSpec[0].size() -1) << 1;
+    //int nfft = (powSpec[0].size() -1) << 1;
 
-    startT = wtime();
-    fft2MelLog(nfft, melLogSpec, powSpec, nfilts, hz2melFunc, mel2hzFunc, minF, maxF, sampleRate);
-    finishT = wtime();
-    double t_mel = finishT-startT;
-    totalTime += t_mel;
+    //startT = wtime();
+    //fft2MelLog(nfft, melLogSpec, powSpec, nfilts, hz2melFunc, mel2hzFunc, minF, maxF, sampleRate);
+    //finishT = wtime();
+    //double t_mel = finishT-startT;
+    //totalTime += t_mel;
 
-    startT = wtime();
-    melCepstrum(melCeps, melLogSpec, cepsNum);
-    finishT = wtime();
-    double t_dctCep = finishT-startT;
-    totalTime += t_dctCep;
+    //startT = wtime();
+    //melCepstrum(melCeps, melLogSpec, cepsNum);
+    //finishT = wtime();
+    //double t_dctCep = finishT-startT;
+    //totalTime += t_dctCep;
 
-    startT = wtime();
-    time_t start = time(0);
-    normalization(normalMelCeps, melCeps);
-    finishT = wtime();
-    double t_norm = finishT-startT;
-    totalTime += t_norm;
+    //startT = wtime();
+    //time_t start = time(0);
+    //normalization(normalMelCeps, melCeps);
+    //finishT = wtime();
+    //double t_norm = finishT-startT;
+    //totalTime += t_norm;
 
-    std::cout << "Total Time: " << totalTime << std::endl;
-    std::cout << "PreEmp: " << t_preemp << " s , " << t_preemp*100/totalTime <<"%" <<std::endl;
-    std::cout << "Windowing: " << t_window << " s , " << t_window*100/totalTime <<"%" << std::endl;
-    std::cout << "FFT padding: " << t_fftpad << " s , " << t_fftpad*100/totalTime <<"%"<< std::endl;
-    std::cout << "PowerSpectrum: " << t_powSpec << " s , " << t_powSpec*100/totalTime <<"%"<< std::endl;
-    std::cout << "MelFiltering: " << t_mel << " s , " << t_mel*100/totalTime <<"%"<< std::endl;
-    std::cout << "DCT Ceptrum: " << t_dctCep << " s , " << t_dctCep*100/totalTime <<"%"<< std::endl;
-    std::cout << "Normalization: " << t_norm << " s , " << t_norm*100/totalTime <<"%"<< std::endl;
+    //std::cout << "Total Time: " << totalTime << std::endl;
+    //std::cout << "PreEmp: " << t_preemp << " s , " << t_preemp*100/totalTime <<"%" <<std::endl;
+    //std::cout << "Windowing: " << t_window << " s , " << t_window*100/totalTime <<"%" << std::endl;
+    //std::cout << "FFT padding: " << t_fftpad << " s , " << t_fftpad*100/totalTime <<"%"<< std::endl;
+    //std::cout << "PowerSpectrum: " << t_powSpec << " s , " << t_powSpec*100/totalTime <<"%"<< std::endl;
+    //std::cout << "MelFiltering: " << t_mel << " s , " << t_mel*100/totalTime <<"%"<< std::endl;
+    //std::cout << "DCT Ceptrum: " << t_dctCep << " s , " << t_dctCep*100/totalTime <<"%"<< std::endl;
+    //std::cout << "Normalization: " << t_norm << " s , " << t_norm*100/totalTime <<"%"<< std::endl;
 
     return SP_SUCCESS;
 }
@@ -200,88 +203,170 @@ void FeatureExtractor::fftTask(void *in) {
 }
 */
 
-SP_RESULT FeatureExtractor::powSpectrum(Matrix<double> &powSpec, \
-        Matrix<double> &windows) {
-    if(windows.size() == 0) return SP_SUCCESS;
+//SP_RESULT FeatureExtractor::powSpectrum(Matrix<double> &powSpec, \
+//        Matrix<double> &windows) {
+//    if(windows.size() == 0) return SP_SUCCESS;
+//
+//    powSpec.resize(windows.size());
+//    
+//    int frameNum = windows.size(), 
+//        frameSize = windows[0].size(),
+//        blockSize = windows[0].size(),
+//        elementNum = frameNum * frameSize, 
+//        selIdx = (int)(std::log2(frameSize))%2;
+//    size_t memSize = elementNum * sizeof(std::complex<double>);
+//    size_t sharedMem = 2*blockSize*sizeof(std::complex<double>);
+//
+//    std::complex<double> *SpeechSignal = new std::complex<double>[elementNum], *d_SpeechSignal;
+//    for(int i=0; i<frameNum; i++){
+//        int offset = i*frameSize;
+//        for(int j=0; j<frameSize; j++){
+//            SpeechSignal[offset+j] = std::complex<double>(windows[i][j],0);
+//        }
+//    }
+//
+//    double calculationStartT = wtime();
+//    double startT, finishT;
+//    startT = wtime();
+//    //cudaMalloc( (void **) &d_SpeechSignal, memSize*2 );
+//    cudaMalloc( (void **) &d_SpeechSignal, memSize );
+//
+//    cudaMemcpy( d_SpeechSignal, SpeechSignal, memSize, cudaMemcpyHostToDevice);
+//    
+//    finishT = wtime();
+//    std::cout << "Cuda Initialize Time: " << finishT-startT<< std::endl;
+//    
+//    std::cout << "The select index is: " << selIdx << std::endl;
+//
+//    dim3 dimGrid( ceil( (double)elementNum/blockSize ) );
+//    dim3 dimBlock(blockSize);
+//    windowFFT_cu<<< dimGrid, dimBlock, sharedMem >>>(d_SpeechSignal, frameNum, frameSize, 1, selIdx);
+//    cudaMemcpy(SpeechSignal, d_SpeechSignal+memSize*selIdx, memSize, cudaMemcpyDeviceToHost);
+//    cudaMemcpy(SpeechSignal, d_SpeechSignal, memSize, cudaMemcpyDeviceToHost);
+//    
+//    double calculationEndT = wtime();
+//    printf("PowerSpectrum calculation time: %lf\n", calculationEndT - calculationStartT - (finishT - startT));
+//    
+//    int resSize=frameSize/2+1, resultOffset;
+//    for(int i=0; i<frameNum; i++){
+//        powSpec[i].resize(resSize);
+//        resultOffset = i*frameSize;
+//        for(int j=0; j<resSize; j++)
+//            powSpec[i][j] = std::norm(SpeechSignal[resultOffset+j]);
+//    }
+//
+//    cudaFree(d_SpeechSignal);
+//    delete []SpeechSignal;
+//    /*  
+//    for(int i = 0;i < windows.size(); i++) {
+//        if(windows[i].size() != siz) continue;
+//        windowFFT(powSpec[i], windows[i]);
+//    }
+//    */
+//    
+//    /*
+//    ThreadPool threadPool(threadNum);
+//    for(int i = 0;i < windows.size();i++) {
+//        sp_task task;
+//
+//        if(windows[i].size() != siz) continue;
+//
+//        fft_task_info *task_info = new fft_task_info;
+//        task_info->window = &(windows[i]);
+//        task_info->powWinSpec = &(powSpec[i]);
+//
+//        task.func = fftTask;
+//        task.in   = task_info;
+//
+//        threadPool.addTask(task);
+//    }
+//    threadPool.run();
+//    */
+//
+//    return SP_SUCCESS;
+//}
 
-    powSpec.resize(windows.size());
+
+SP_RESULT FeatureExtractor::powSpectrum(FEATURE_DATA **powSpec, \
+        FEATURE_DATA **windows) {
+    //if(windows.size() == 0) return SP_SUCCESS;
     
-    int frameNum = windows.size(), 
-        frameSize = windows[0].size(),
-        blockSize = windows[0].size(),
+    int frameNum = e_frameNum, 
+        frameSize = e_frameSize,
+        blockSize = e_frameSize,
         elementNum = frameNum * frameSize, 
         selIdx = (int)(std::log2(frameSize))%2;
-    size_t memSize = elementNum * sizeof(std::complex<double>);
-    size_t sharedMem = 2*blockSize*sizeof(std::complex<double>);
+    
+    std::cout << "FrameNum: "<< frameNum <<", FrameSize: " << frameSize << ", blockSize: " << blockSize << ", elementNum: " << elementNum << std::endl;
+    
+    // Memory Size for whole data
+    size_t memSize = elementNum * 2 *sizeof(FEATURE_DATA);
+    
+    // Share Memory Size in the CUDA
+    size_t sharedMem = 2 * blockSize * 2 * sizeof(FEATURE_DATA);
 
-    std::complex<double> *SpeechSignal = new std::complex<double>[elementNum], *d_SpeechSignal;
+    FEATURE_DATA *SpeechSignal_real = new FEATURE_DATA[elementNum*2], 
+                 *d_SpeechSignal_real,
+                 *d_SpeechSignal_imag;
+    FEATURE_DATA *SpeechSignal_imag = &SpeechSignal_real[elementNum];
+    
+    // Initialize the Speech Signal by windows (imaginary part are all zero)
+    memset(SpeechSignal_real, 0, memSize);
+    memcpy(SpeechSignal_real, windows[0], memSize/2);
+   
     for(int i=0; i<frameNum; i++){
-        int offset = i*frameSize;
+        int beginIdx = i*frameSize;
         for(int j=0; j<frameSize; j++){
-            SpeechSignal[offset+j] = std::complex<double>(windows[i][j],0);
+            if(SpeechSignal_real[beginIdx+j] != windows[i][j])
+                std::cout << "Not equal!!!!!!!!!" << std::endl;
         }
     }
 
-    double calculationStartT = wtime();
-    double startT, finishT;
-    startT = wtime();
-    //cudaMalloc( (void **) &d_SpeechSignal, memSize*2 );
-    cudaMalloc( (void **) &d_SpeechSignal, memSize );
-
-    cudaMemcpy( d_SpeechSignal, SpeechSignal, memSize, cudaMemcpyHostToDevice);
+    double startT, finishT, calcStartT, calcEndT;
+    calcStartT = startT = wtime();
     
+    cudaMalloc( (void **) &d_SpeechSignal_real, memSize );
+    cudaMemcpy( d_SpeechSignal_real, SpeechSignal_real, memSize, cudaMemcpyHostToDevice);
+    d_SpeechSignal_imag = &d_SpeechSignal_real[elementNum];
+
     finishT = wtime();
     std::cout << "Cuda Initialize Time: " << finishT-startT<< std::endl;
-    
     std::cout << "The select index is: " << selIdx << std::endl;
 
     dim3 dimGrid( ceil( (double)elementNum/blockSize ) );
     dim3 dimBlock(blockSize);
-    windowFFT_cu<<< dimGrid, dimBlock, sharedMem >>>(d_SpeechSignal, frameNum, frameSize, 1, selIdx);
-    cudaMemcpy(SpeechSignal, d_SpeechSignal+memSize*selIdx, memSize, cudaMemcpyDeviceToHost);
-    cudaMemcpy(SpeechSignal, d_SpeechSignal, memSize, cudaMemcpyDeviceToHost);
+    windowFFT_cu<<< dimGrid, dimBlock, sharedMem >>>(d_SpeechSignal_real, d_SpeechSignal_imag, frameNum, frameSize, 1, selIdx);
+    cudaMemcpy(SpeechSignal_real, d_SpeechSignal_real, memSize, cudaMemcpyDeviceToHost);
     
-    double calculationEndT = wtime();
-    printf("PowerSpectrum calculation time: %lf\n", calculationEndT - calculationStartT - (finishT - startT));
+    calcEndT = wtime();
+    printf("PowerSpectrum calculation time: %lf\n", calcEndT - calcStartT - (finishT - startT));
     
-    int resSize=frameSize/2+1, resultOffset;
+    
+    // Calculate the Power Spectrum
+    int resSize=frameSize/2+1, frameOffset, finalOffset;
+    FEATURE_DATA realPart, imagPart;
+    e_powFrameSize = resSize;
+    
+    e_powSpec = (FEATURE_DATA **) malloc(e_frameNum * sizeof(FEATURE_DATA *));
+    FEATURE_DATA *tmp_powSpec = (FEATURE_DATA *) malloc(e_frameNum * resSize * sizeof(FEATURE_DATA));
+    
     for(int i=0; i<frameNum; i++){
-        powSpec[i].resize(resSize);
-        resultOffset = i*frameSize;
-        for(int j=0; j<resSize; j++)
-            powSpec[i][j] = std::norm(SpeechSignal[resultOffset+j]);
+        e_powSpec[i] = &tmp_powSpec[i*resSize];
+        frameOffset = i*frameSize;
+        for(int j=0; j<resSize; j++){
+            finalOffset = frameOffset + j;
+            realPart = SpeechSignal_real[finalOffset];
+            imagPart = SpeechSignal_imag[finalOffset];
+            e_powSpec[i][j] = realPart*realPart + imagPart*imagPart;
+        }
     }
 
-    cudaFree(d_SpeechSignal);
-    delete []SpeechSignal;
-    /*  
-    for(int i = 0;i < windows.size(); i++) {
-        if(windows[i].size() != siz) continue;
-        windowFFT(powSpec[i], windows[i]);
-    }
-    */
-    
-    /*
-    ThreadPool threadPool(threadNum);
-    for(int i = 0;i < windows.size();i++) {
-        sp_task task;
-
-        if(windows[i].size() != siz) continue;
-
-        fft_task_info *task_info = new fft_task_info;
-        task_info->window = &(windows[i]);
-        task_info->powWinSpec = &(powSpec[i]);
-
-        task.func = fftTask;
-        task.in   = task_info;
-
-        threadPool.addTask(task);
-    }
-    threadPool.run();
-    */
+    cudaFree(d_SpeechSignal_real);
+    delete []SpeechSignal_real;
 
     return SP_SUCCESS;
 }
+
 
 SP_RESULT FeatureExtractor::getWts(Matrix<double> &wts, \
         int nfft, \
@@ -537,6 +622,17 @@ SP_RESULT FeatureExtractor::windowMul(std::vector<double> &window, \
     return SP_SUCCESS;
 }
 
+
+SP_RESULT FeatureExtractor::windowMul(FEATURE_DATA *window, \
+        int size, \
+        double (*winFunc)(int, int) ) {
+    for(int i = 0;i < size;i++) {
+        window[i] *= winFunc(i, size);
+    }
+    return SP_SUCCESS;
+}
+
+
 SP_RESULT FeatureExtractor::windowing(Matrix<double> & out_windows, \
         const std::vector<double> & in, \
         double winTime, \
@@ -561,6 +657,57 @@ SP_RESULT FeatureExtractor::windowing(Matrix<double> & out_windows, \
     return SP_SUCCESS;
 }
 
+
+SP_RESULT FeatureExtractor::windowing(FEATURE_DATA **out_windows, \
+        const FEATURE_DATA *in, \
+        double winTime, \
+        double stepTime, \
+        int rate, \
+        double (*winFunc)(int, int)) {
+    int samplePerWin = ceil(winTime * rate);
+    int stepPerWin = ceil(stepTime * rate);
+    int nfft = (1 << int(ceil(log(1.0 * samplePerWin)/log(2.0))));
+    e_frameSize = nfft;
+    
+    int paddedSize = nfft*ceil((float)size_empData/stepPerWin)*sizeof(FEATURE_DATA);
+    FEATURE_DATA *window_data = (FEATURE_DATA *)malloc(paddedSize);
+    memset(window_data, 0, paddedSize);
+    
+    //std::cout << "Padded Size: " << paddedSize << std::endl;
+    int cnt=0, i, j, k;
+    for(i = 0, k=0; i < size_empData; i += stepPerWin, k += nfft) {
+        cnt++;
+        for(j = 0;j < samplePerWin && i+j < size_empData; j++) {
+            //buf[j] = in[i+j];
+            window_data[k+j] = in[i+j];
+        }
+
+        //std::cout << "Inner Size: " << j << std::endl;
+        //windowMul(buf, winFunc);
+        windowMul(&window_data[k],samplePerWin,winFunc);
+    }
+    
+    e_frameNum = cnt;
+    e_windows = (FEATURE_DATA **)malloc(cnt*sizeof(FEATURE_DATA *));
+    for(i=0,j=0; i<cnt; i++,j+=e_frameSize){
+        e_windows[i] = &window_data[j];
+    }
+
+    //std::vector<double> buf(samplePerWin);
+    //for(int i = 0; i < in.size(); i += stepPerWin) {
+    //    for(int j = 0;j < samplePerWin && i+j < in.size(); j++) {
+    //        buf[j] = in[i+j];
+    //    }
+
+    //    windowMul(buf, winFunc);
+
+    //    out_windows.push_back(buf);
+    //}
+
+    return SP_SUCCESS;
+}
+
+
 SP_RESULT FeatureExtractor::preEmph(/* out */std::vector<double> &outs, \
         /*in*/const SOUND_DATA* rd, \
         int size, \
@@ -574,6 +721,18 @@ SP_RESULT FeatureExtractor::preEmph(/* out */std::vector<double> &outs, \
     return SP_SUCCESS;
 }
 
+SP_RESULT FeatureExtractor::preEmph(/* out */FEATURE_DATA *outs, \
+        /*in*/const SOUND_DATA* rd, \
+        int size, \
+        double factor){
+    size_empData = size;
+    outs[0]=rd[0];
+    for(int i = 1;i<size;i++){
+        outs[i]=(1.0 * rd[i] - factor * rd[i-1]);
+    }
+
+    return SP_SUCCESS;
+}
 /*
 void FeatureExtractor::paddingTask(void *in) {
     padding_task_info * info = (padding_task_info *) in;

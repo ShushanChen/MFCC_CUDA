@@ -21,6 +21,10 @@
 
 class FeatureExtractor{
     CONST_REFERENCE_READ_ONLY_DECLARE(std::vector<double> , emp_data, EmpData)
+    CONST_REFERENCE_READ_ONLY_DECLARE(int, size_empData, SizeEmpData)
+    CONST_REFERENCE_READ_ONLY_DECLARE(int, e_frameNum, ExFrameNum)
+    CONST_REFERENCE_READ_ONLY_DECLARE(int, e_frameSize, ExFrameSize)
+    CONST_REFERENCE_READ_ONLY_DECLARE(int, e_powFrameSize, ExPowFrameSize)
     CONST_REFERENCE_READ_ONLY_DECLARE(Matrix<double> , windows, Windows)
     CONST_REFERENCE_READ_ONLY_DECLARE(Matrix<double> , powSpec, PowSpectrum)
     CONST_REFERENCE_READ_ONLY_DECLARE(Matrix<double> , melLogSpec, MelLogSpec)
@@ -28,6 +32,9 @@ class FeatureExtractor{
     CONST_REFERENCE_READ_ONLY_DECLARE(std::vector<Feature>, melCeps, MelCepstrum);
     CONST_REFERENCE_READ_ONLY_DECLARE(std::vector<Feature>, normalMelCeps, NormalMelCepstrum);
 
+    READ_WRITE_DECLARE(FEATURE_DATA *, e_emp_data, ExEmpData)
+    READ_WRITE_DECLARE(FEATURE_DATA **, e_windows, ExWindows)
+    READ_WRITE_DECLARE(FEATURE_DATA **, e_powSpec, ExPowSpec)
     READ_WRITE_DECLARE(int , sampleRate, SampleRate);
     READ_WRITE_DECLARE(double , preEmpFactor, PreEmpFactor);
     READ_WRITE_DECLARE(double, winTime, WinTime);
@@ -83,8 +90,21 @@ protected:
             int size , \
             double factor = SP_PREEMPH_FACTOR);
 
+    SP_RESULT preEmph(double* outs, \
+            const SOUND_DATA* rd, \
+            int size , \
+            double factor = SP_PREEMPH_FACTOR);
+    
     SP_RESULT windowing(Matrix<double> & out_windows, \
             const std::vector<double> &in, \
+            double winTime = WINTIME, \
+            double stepTime = STEPTIME, \
+            int rate = SAMPLE_RATE, \
+            double (*winFunc)(int, int) = FeatureExtractor::hanning);
+    
+
+    SP_RESULT windowing(FEATURE_DATA** out_windows, \
+            const FEATURE_DATA *in, \
             double winTime = WINTIME, \
             double stepTime = STEPTIME, \
             int rate = SAMPLE_RATE, \
@@ -93,6 +113,7 @@ protected:
     SP_RESULT fftPadding(Matrix<double> & out_pads);
     
     SP_RESULT powSpectrum(Matrix<double> &powSpectrum, Matrix<double> &windows);
+    SP_RESULT powSpectrum(FEATURE_DATA **powSpectrum, FEATURE_DATA **windows);
 
     SP_RESULT melCepstrum(std::vector<Feature> &cepstrums, \
             const Matrix<double> &melLogSpec, \
@@ -151,8 +172,26 @@ protected:
     SP_RESULT windowMul(std::vector<double> &window, \
             double (*winFunc)(int, int) );
     
+    SP_RESULT windowMul(FEATURE_DATA *window, \
+            int size, \
+            double (*winFunc)(int, int) );
+    
 public:
     FeatureExtractor() :threadNum(DEFAULT_THREAD_NUM), \
+            sampleRate(SAMPLE_RATE), \
+            preEmpFactor(SP_PREEMPH_FACTOR), \
+            winTime(WINTIME), \
+            stepTime(STEPTIME), \
+            winFunc(FeatureExtractor::hanning), \
+            minF(MIN_F), \
+            maxF(MAX_F), \
+            hz2melFunc(FeatureExtractor::hz2mel), \
+            mel2hzFunc(FeatureExtractor::mel2hz), \
+            nfilts(MEL_FILTER_NUM), \
+            cepsNum(CEPS_NUM) {}
+    FeatureExtractor(FEATURE_DATA *maxEmpData) : \
+            e_emp_data(maxEmpData),
+            threadNum(DEFAULT_THREAD_NUM), \
             sampleRate(SAMPLE_RATE), \
             preEmpFactor(SP_PREEMPH_FACTOR), \
             winTime(WINTIME), \
@@ -176,7 +215,12 @@ public:
             mel2hzFunc(FeatureExtractor::mel2hz), \
             nfilts(MEL_FILTER_NUM), \
             cepsNum(CEPS_NUM) {}
-    ~FeatureExtractor() {}
+    ~FeatureExtractor() {
+        free(e_windows[0]);
+        free(e_windows);
+        free(e_powSpec[0]);
+        free(e_powSpec);
+    }
 
     void doubleDelta(std::vector<Feature> &normalMelCeps);
     

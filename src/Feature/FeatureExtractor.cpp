@@ -425,12 +425,21 @@ SP_RESULT FeatureExtractor::windowing(Matrix<double> & out_windows, \
     int stepPerWin = ceil(stepTime * rate);
     
 //    int nfft = 2 ^ (ceil(log(1.0 * samplePerWin)/log(2.0)));
+    //std::cout << "Total Size: " << in.size() << std::endl;
+    //std::cout << "SamplePerWin : " << samplePerWin << std::endl;
+    //std::cout << "stepPerWin: " << stepPerWin << std::endl;
     std::vector<double> buf(samplePerWin);
-    for(int i = 0; i < in.size(); i += stepPerWin) {
-        for(int j = 0;j < samplePerWin && i+j < in.size(); j++) {
+    int i,j;
+    for(i = 0; i < in.size(); i += stepPerWin) {
+        for(j = 0;j < samplePerWin && i+j < in.size(); j++) {
             buf[j] = in[i+j];
         }
-
+        //std::cout << "Inner Size: " << j << std::endl;
+        if(j<buf.size()){
+            for(int k=j; k<buf.size(); k++){
+                buf[k]=0;
+            }
+        }
         windowMul(buf, winFunc);
 
         out_windows.push_back(buf);

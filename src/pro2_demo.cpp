@@ -15,13 +15,16 @@ char wavFileName[1024] = "\0";
 void reportMatlab(FeatureExtractor &extractor);
 bool dealOpts(int argc, char **argv);
 
+FEATURE_DATA maxEmpData[MAX_BUFFER_SIZE];
+
 int main(int argc, char **argv) {
     if(! dealOpts(argc, argv))
         return 0;
 
     //cudaDeviceSynchronize();
     
-    FeatureExtractor extractor(threadNum);
+    //FeatureExtractor extractor(threadNum);
+    FeatureExtractor extractor(maxEmpData);
  //   FeatureExtractor extractor2(threadNum);
 
     RawData data;
@@ -79,6 +82,25 @@ void storeVector(const vector<T> &data, const char *filename) {
         out << data[i] << endl;
     out.close();
 }
+
+void storeBareVector(const FEATURE_DATA *data, int size, const char *filename){
+    ofstream out(filename);
+    for(int i=0; i<size; i++)
+        out << data[i] << endl;
+    out.close();
+}
+
+void storeBareMatrix(FEATURE_DATA **data, int size1, int size2, const char *filename){
+    ofstream out(filename);
+    for(int i=0; i<size1; i++){
+        for(int j=0; j<size2; j++){
+            out << data[i][j] << " ";
+        }
+        out << endl;
+    }
+    out.close();
+}
+
 template <class T> 
 void storeMatrix(const Matrix<T> &data, const char *filename) {
     ofstream out(filename);
@@ -109,23 +131,43 @@ void storeFeas(const std::vector<Feature> & data, const char *filename) {
     out.close();
 }
 void reportMatlab(FeatureExtractor &extractor) {
-    const vector<double> &empData = extractor.getEmpData();
+    //const vector<double> &empData = extractor.getEmpData();
 
-    storeVector(empData, "emp.txt");
+    //storeVector(empData, "emp.txt");
 
-    const Matrix<double> &powSpec = extractor.getPowSpectrum();
+    const FEATURE_DATA *externEmpData = extractor.getExEmpData();
+    const int e_SizeEmp = extractor.getSizeEmpData();
+    storeBareVector(externEmpData, e_SizeEmp, "e_emp.txt");
 
-    storeMatrix(powSpec, "powSpec.txt");
+    //const Matrix<double> &windows = extractor.getWindows();
+    //storeMatrix(windows, "windows.txt");
 
-    const Matrix<double> &melLog = extractor.getMelLogSpec();
+    FEATURE_DATA **e_windows = extractor.getExWindows();
+    const int tmp_frameNum = extractor.getExFrameNum();
+    const int tmp_frameSize = extractor.getExFrameSize();
+    int samplePerWin = ceil(extractor.getWinTime() * extractor.getSampleRate());
+    storeBareMatrix(e_windows, tmp_frameNum, tmp_frameSize, "e_windows.txt");
+    //storeBareMatrix(e_windows, tmp_frameNum, samplePerWin, "e_windows.txt");
 
-    storeMatrix(melLog, "melLogSpec.txt");
+    
+    //const Matrix<double> &powSpec = extractor.getPowSpectrum();
 
-    const vector<Feature> & featrues = extractor.getMelCepstrum();
+    //storeMatrix(powSpec, "powSpec.txt");
 
-    storeFeas(featrues, "melCeps.txt");
+    FEATURE_DATA **e_powSpec = extractor.getExPowSpec();
+    const int tmp_powFrameSize = extractor.getExPowFrameSize();
+    std::cout << "Frame Num: " << tmp_frameNum <<", powFrameSize: "<<tmp_powFrameSize << endl;
+    storeBareMatrix(e_powSpec, tmp_frameNum, tmp_powFrameSize, "e_powSpec.txt");
+    
+    //const Matrix<double> &melLog = extractor.getMelLogSpec();
 
-    const vector<Feature> & normals = extractor.getNormalMelCepstrum();
+    //storeMatrix(melLog, "melLogSpec.txt");
 
-    storeFeas(normals , "normalMelCeps.txt");
+    //const vector<Feature> & featrues = extractor.getMelCepstrum();
+
+    //storeFeas(featrues, "melCeps.txt");
+
+    //const vector<Feature> & normals = extractor.getNormalMelCepstrum();
+
+    //storeFeas(normals , "normalMelCeps.txt");
 }

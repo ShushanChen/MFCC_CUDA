@@ -37,6 +37,9 @@ const int NUM_CHANNELS = 1; //don't change
 
 const int SAMPLES_IN_EACH_FRAME = SAMPLE_RATE / FRAME_PER_SECOND;
 
+const int MAX_BUFFER_SIZE = SAMPLE_RATE * MAX_BUFFER_SECOND;
+
+typedef double FEATURE_DATA;
 
 #if 0
 #define PA_DATA_TYPE  paFloat32

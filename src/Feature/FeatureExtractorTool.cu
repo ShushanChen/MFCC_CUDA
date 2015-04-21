@@ -141,53 +141,74 @@ void matrix_mul_kernel(d_type *sq_matrix_1, d_type *sq_matrix_2, d_type *sq_matr
 
 
 __global__
-void windowFFT_cu(cp *d_SpeechSignal, int frameNum, int frameSize, int f, int selIdx, double arg) {
+void windowFFT_cu(FEATURE_DATA *d_SpeechSignal_real, FEATURE_DATA *d_SpeechSignal_imag, int frameNum, int frameSize, int f, int selIdx, double arg) {
     extern __shared__ char s_SpeechSignal[];
     int p, i, j, rollIdx=0, oldRollIdx;
     size_t innerIdx = threadIdx.x % frameSize, 
            frame_offset = blockDim.x*blockIdx.x+(threadIdx.x/frameSize)*frameSize;
-    double temp_cp[2], temp_wm[2], temp_w[2];
-    cp *temp = (cp *) temp_cp, 
-       *wm = (cp*)temp_wm, 
-       *w = (cp*)temp_w; 
-    //cp *d_signal[2];
-    cp *s_signal[2]; 
+    
+    FEATURE_DATA temp_cp[2], temp_wm[2], temp_w[2], temp_result[2];
+    size_t total_offset = frame_offset+innerIdx;
+   
+    //cp *temp = (cp *) temp_cp, 
+    //   *wm = (cp*)temp_wm, 
+    //   *w = (cp*)temp_w; 
+    
+    FEATURE_DATA *s_signal_real[2]; 
+    FEATURE_DATA *s_signal_imag[2]; 
 
-    size_t sharedSize = blockDim.x * sizeof(cp);
-    s_signal[0] = (cp *)s_SpeechSignal;
-    s_signal[1] = (cp *)&s_SpeechSignal[sharedSize];
-    //d_signal[0] = d_SpeechSignal+frame_offset;
-    //d_signal[1] = d_signal[0]+frameNum*frameSize;
+    size_t sharedSize = blockDim.x * sizeof(FEATURE_DATA);
+    s_signal_real[0] = (FEATURE_DATA *) s_SpeechSignal;
+    s_signal_imag[0] = (FEATURE_DATA *) &s_SpeechSignal[sharedSize];
+    s_signal_real[1] = (FEATURE_DATA *) &s_SpeechSignal[2*sharedSize];
+    s_signal_imag[1] = (FEATURE_DATA *) &s_SpeechSignal[3*sharedSize];
 
-    *(s_signal[0]+innerIdx) = *(d_SpeechSignal+frame_offset+innerIdx);
+    *(s_signal_real[0]+innerIdx) = *(d_SpeechSignal_real+total_offset);
+    *(s_signal_imag[0]+innerIdx) = *(d_SpeechSignal_imag+total_offset);
     __syncthreads();
 
+    int tmpIdx;
     for(int k = frameSize>>1; k; k>>=1, arg*=0.5) {
         rollIdx ^= 1;
         oldRollIdx = rollIdx^1;
 
         getPolarValue(1, f*arg, temp_wm);
-        *temp_w = 1;
-        *(temp_w+1) = 0;
+        temp_w[0] = 1;
+        temp_w[1] = 0;
 
         i = innerIdx/k;
         j = innerIdx%k;
         for(int t=0; t<i; t++){
             //w = w*wm;
-            mulComplex(w,wm,w);
+            mulComplex(temp_w, temp_wm, temp_w);
         }
         i = i*k;
         p = i<<1;
         if(p>=frameSize) p-=frameSize;
 
-        //mulComplex(temp, w, d_signal[oldRollIdx]+(p+k+j)); 
-        //addComplex(d_signal[rollIdx]+(i+j), temp, d_signal[oldRollIdx]+(p+j));
+        //mulComplex(temp, w, s_signal[oldRollIdx]+(p+k+j)); 
+        tmpIdx = p+k+j;
+        temp_result[0] = s_signal_real[oldRollIdx][tmpIdx];
+        temp_result[1] = s_signal_imag[oldRollIdx][tmpIdx];
+        mulComplex(temp_cp, temp_w, temp_result);
+        
+        //addComplex(s_signal[rollIdx]+(i+j), temp, s_signal[oldRollIdx]+(p+j));
+        tmpIdx = p+j;
+        temp_result[0] = s_signal_real[oldRollIdx][tmpIdx];
+        temp_result[1] = s_signal_imag[oldRollIdx][tmpIdx];
+        addComplex(temp_result, temp_cp, temp_result); 
 
-        mulComplex(temp, w, s_signal[oldRollIdx]+(p+k+j)); 
-        addComplex(s_signal[rollIdx]+(i+j), temp, s_signal[oldRollIdx]+(p+j));
+        tmpIdx = i+j;
+        s_signal_real[rollIdx][tmpIdx] = temp_result[0];
+        s_signal_imag[rollIdx][tmpIdx] = temp_result[1];
+
         __syncthreads();
     }
-    d_SpeechSignal[frame_offset+innerIdx] = *(s_signal[selIdx]+innerIdx);
+    
+    //d_SpeechSignal[frame_offset+innerIdx] = *(s_signal[selIdx]+innerIdx);
+    tmpIdx = frame_offset+innerIdx;
+    d_SpeechSignal_real[tmpIdx] = s_signal_real[selIdx][innerIdx];
+    d_SpeechSignal_imag[tmpIdx] = s_signal_imag[selIdx][innerIdx];
 }
 
 __global__ 
@@ -233,6 +254,39 @@ void fft_cu_part(cp *d_SpeechSignal, int n, int f, double arg){
 }
 
 __device__ 
+void mulComplex(FEATURE_DATA *output, FEATURE_DATA *input1, FEATURE_DATA *input2){
+    FEATURE_DATA real1, imag1, real2, imag2;
+    getRealImag(real1,imag1,input1);
+    getRealImag(real2,imag2,input2);
+    output[0] = real1*real2-imag1*imag2;
+    output[1] = real1*imag2+imag1*real2;
+    //output = cp( real1*real2-imag1*imag2 , real1*imag2+imag1*real2 );
+}
+
+__device__
+void addComplex(FEATURE_DATA *output, FEATURE_DATA *input1, FEATURE_DATA *input2){
+    FEATURE_DATA real1, imag1, real2, imag2;
+    getRealImag(real1,imag1,input1);
+    getRealImag(real2,imag2,input2);
+    output[0] = real1+real2;
+    output[1] = imag1+imag2;
+    //output = cp( real1+real2, imag1+imag2 );
+}
+
+__device__
+void getRealImag(FEATURE_DATA& real, FEATURE_DATA& imag, const FEATURE_DATA *input){
+    real = input[0];
+    imag = input[1];
+}
+
+__device__
+void getPolarValue(FEATURE_DATA rho, FEATURE_DATA theta, FEATURE_DATA *output){
+    *output = rho*cos(theta);
+    *(output+1) = rho*sin(theta);
+}
+
+
+__device__ 
 void mulComplex(cp *output, cp *input1, cp *input2){
     double real1, imag1, real2, imag2;
     getRealImag(real1,imag1,input1);
@@ -261,9 +315,9 @@ void getRealImag(double& real, double& imag, const cp *input){
     imag = *(comp+1);
 }
 
-__device__
-void getPolarValue(double rho, double theta, double *output){
-    *output = rho*cos(theta);
-    *(output+1) = rho*sin(theta);
-}
+//__device__
+//void getPolarValue(double rho, double theta, double *output){
+//    *output = rho*cos(theta);
+//    *(output+1) = rho*sin(theta);
+//}
 
