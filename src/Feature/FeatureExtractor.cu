@@ -99,11 +99,12 @@ SP_RESULT FeatureExtractor::exFeatures(const RawData *data, \
     double t_mel = finishT-startT;
     totalTime += t_mel;
 
-    //startT = wtime();
+    startT = wtime();
     //melCepstrum(melCeps, melLogSpec, cepsNum);
-    //finishT = wtime();
-    //double t_dctCep = finishT-startT;
-    //totalTime += t_dctCep;
+    melCepstrum(melCeps, e_melLogSpec, cepsNum);
+    finishT = wtime();
+    double t_dctCep = finishT-startT;
+    totalTime += t_dctCep;
 
     //startT = wtime();
     //time_t start = time(0);
@@ -198,6 +199,25 @@ SP_RESULT FeatureExtractor::melCepstrum(std::vector<Feature> &cepstrums, \
     }
     return SP_SUCCESS;
 }
+
+
+SP_RESULT FeatureExtractor::melCepstrum(std::vector<Feature> &cepstrums, \
+        FEATURE_DATA **melLogSpec, \
+        int cepsNum) {
+    cepstrums.clear();
+
+    for(int i = 0;i < e_frameNum; i++) {
+        std::vector<FEATURE_DATA> tmp;
+        for(int j = 0;j < nfilts; j++)
+            tmp.push_back(melLogSpec[j][i]);
+
+        cepstrums.push_back(Feature());
+
+        mel2dct(cepstrums[i], tmp, cepsNum);
+    }
+    return SP_SUCCESS;
+}
+
 
 /*
 void FeatureExtractor::fftTask(void *in) {

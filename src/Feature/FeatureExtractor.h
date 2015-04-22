@@ -123,6 +123,10 @@ protected:
     SP_RESULT melCepstrum(std::vector<Feature> &cepstrums, \
             const Matrix<double> &melLogSpec, \
             int cepsNum = CEPS_NUM);
+    
+    SP_RESULT melCepstrum(std::vector<Feature> &cepstrums, \
+            FEATURE_DATA **melLogSpec, \
+            int cepsNum = CEPS_NUM);
 
     void windowFFT(std::vector<double> &res, \
             std::vector<double> &data);

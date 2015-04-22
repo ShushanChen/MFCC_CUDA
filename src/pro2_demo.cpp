@@ -168,8 +168,10 @@ void reportMatlab(FeatureExtractor &extractor) {
     storeBareMatrix(e_melLogSpec, tmp_nfilts, tmp_frameNum, "e_melLogSpec.txt");
 
     //const vector<Feature> & featrues = extractor.getMelCepstrum();
-
     //storeFeas(featrues, "melCeps.txt");
+
+    const vector<Feature> & featrues = extractor.getMelCepstrum();
+    storeFeas(featrues, "e_melCeps.txt");
 
     //const vector<Feature> & normals = extractor.getNormalMelCepstrum();
 
