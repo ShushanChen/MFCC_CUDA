@@ -34,6 +34,9 @@
 //const double PI = std::acos(-1);
 //#endif
 
+__global__
+void mel2dct_cu(FEATURE_DATA *d_melLogSpec_data, int unitSize, double arg_PI = PI);
+
 __global__ 
 void matrix_mul_kernel(d_type *sq_matrix_1, d_type *sq_matrix_2, d_type *sq_matrix_result, int dim_a, int dim_b, int dim_c);
     

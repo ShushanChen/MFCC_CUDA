@@ -128,6 +128,8 @@ protected:
             FEATURE_DATA **melLogSpec, \
             int cepsNum = CEPS_NUM);
 
+    SP_RESULT reverseMatrix(FEATURE_DATA **outMatrix, FEATURE_DATA **inMatrix, int rowNum, int colNum);
+
     void windowFFT(std::vector<double> &res, \
             std::vector<double> &data);
 

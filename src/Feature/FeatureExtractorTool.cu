@@ -22,6 +22,31 @@
 //Y    }
 //Y}
 
+__global__
+void mel2dct_cu(FEATURE_DATA *d_melLogSpec_data, int unitSize, double arg_PI){
+    extern __shared__ FEATURE_DATA s_data[];
+    
+    size_t blockOffset = blockDim.x*blockIdx.x;
+    size_t totalOffset = blockOffset+threadIdx.x;
+    s_data[threadIdx.x] = d_melLogSpec_data[totalOffset]; 
+    __syncthreads();
+    
+    int frameIdx = threadIdx.x/unitSize;
+    int innerIdx = threadIdx.x % unitSize;
+    
+    int frameBegin = unitSize*frameIdx, 
+        frameEnd = unitSize*(frameIdx+1);
+    
+    FEATURE_DATA result = 0;
+    double constVal = arg_PI*innerIdx/unitSize;
+    for(int j=frameBegin; j<frameEnd; j++){
+       result += s_data[j]*cos(constVal*(j-frameBegin+0.5)); 
+    } 
+
+    d_melLogSpec_data[totalOffset] = result * sqrt(1.0/unitSize);
+}
+
+
 
 __global__ 
 void matrix_mul_kernel(d_type *sq_matrix_1, d_type *sq_matrix_2, d_type *sq_matrix_result, int dim_a, int dim_b, int dim_c) 

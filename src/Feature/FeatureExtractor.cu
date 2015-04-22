@@ -99,6 +99,8 @@ SP_RESULT FeatureExtractor::exFeatures(const RawData *data, \
     double t_mel = finishT-startT;
     totalTime += t_mel;
 
+    std::cout << "  Get the DCT MelCepstrum...\n";
+    
     startT = wtime();
     //melCepstrum(melCeps, melLogSpec, cepsNum);
     melCepstrum(melCeps, e_melLogSpec, cepsNum);
@@ -206,14 +208,83 @@ SP_RESULT FeatureExtractor::melCepstrum(std::vector<Feature> &cepstrums, \
         int cepsNum) {
     cepstrums.clear();
 
-    for(int i = 0;i < e_frameNum; i++) {
-        std::vector<FEATURE_DATA> tmp;
-        for(int j = 0;j < nfilts; j++)
-            tmp.push_back(melLogSpec[j][i]);
+    //for(int i = 0;i < e_frameNum; i++) {
+    //    std::vector<FEATURE_DATA> tmp;
+    //    for(int j = 0;j < nfilts; j++)
+    //        tmp.push_back(melLogSpec[j][i]);
 
-        cepstrums.push_back(Feature());
+    //    cepstrums.push_back(Feature());
 
-        mel2dct(cepstrums[i], tmp, cepsNum);
+    //    mel2dct(cepstrums[i], tmp, cepsNum);
+    //}
+    
+    int framePerBlock = 4;
+    
+    int rowNum = nfilts, 
+        colNum = e_frameNum;
+    int elementNum = rowNum * colNum; 
+    size_t memSize = elementNum*sizeof(FEATURE_DATA);
+    
+    FEATURE_DATA * r_melLogSpec_data = (FEATURE_DATA *) malloc(memSize);
+    FEATURE_DATA ** r_melLogSpec = (FEATURE_DATA **)malloc(colNum * sizeof(FEATURE_DATA *));
+    
+    for(int i=0; i<colNum; i++){
+        r_melLogSpec[i] = &r_melLogSpec_data[i*rowNum];
+    }
+    reverseMatrix(r_melLogSpec, melLogSpec, rowNum, colNum);
+    
+    std::cout << "    Finish reverse the melLogSpectrum Matrix. \n";
+    for(int i=0; i<colNum; i++){
+        //std::cout << "i = "<< i << std::endl;
+        for(int j=0; j<rowNum; j++){
+            //std::cout << r_melLogSpec[i][j] << " ";
+            if(r_melLogSpec[i][j] != melLogSpec[j][i])
+                std::cout << "\n    ........Not Equal........!!!!!!\n\n";
+        }
+        //std::cout << std::endl;
+    }
+    std::cout << "    colNum: " << colNum << ", rowNum: " << rowNum << std::endl; 
+    
+    FEATURE_DATA * d_melLogSpec_data;
+    
+    cudaMalloc((void **) &d_melLogSpec_data, memSize);
+    cudaMemcpy(d_melLogSpec_data, r_melLogSpec_data, memSize, cudaMemcpyHostToDevice);
+
+    std::cout << "    Begin to use CUDA now..." << std::endl;
+
+    int blockSize = framePerBlock*rowNum;
+    size_t sharedMem = blockSize*sizeof(FEATURE_DATA);
+    dim3 dimGrid( ceil((double)elementNum/blockSize) );
+    dim3 dimBlock(blockSize);
+    mel2dct_cu<<< dimGrid, dimBlock, sharedMem>>>(d_melLogSpec_data, rowNum);
+    
+    std::cout << "    Finish using CUDA..." << std::endl;
+    
+    cudaMemcpy(r_melLogSpec_data, d_melLogSpec_data, memSize, cudaMemcpyDeviceToHost);
+    
+    std::cout << "    Fish cuda copy..." << std::endl;
+
+    for(int i=0; i<colNum; i++){
+        Feature tmpFeature;
+        tmpFeature.resize(cepsNum);
+        for(int j=0; j<cepsNum; j++){
+           tmpFeature[j] = r_melLogSpec[i][j]; 
+        }
+        cepstrums.push_back(tmpFeature);
+    }
+    
+    cudaFree(d_melLogSpec_data);
+    free(r_melLogSpec_data);
+    free(r_melLogSpec);
+
+    return SP_SUCCESS;
+}
+
+SP_RESULT FeatureExtractor::reverseMatrix(FEATURE_DATA **outMatrix, FEATURE_DATA **inMatrix, int rowNum, int colNum){
+    for(int i=0; i<colNum; i++){
+        for(int j=0; j<rowNum; j++){
+            outMatrix[i][j] = inMatrix[j][i];
+        }
     }
     return SP_SUCCESS;
 }

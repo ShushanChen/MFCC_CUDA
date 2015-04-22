@@ -157,11 +157,20 @@ SP_RESULT FeatureExtractor::mel2dct(Feature & feature, std::vector<double> melLo
     for(int i = 0;i < siz;i++)
         feature[i] = melLog[i];
 
+    //for(int i=0; i<siz; i++) std::cout << feature[i] << " ";
+    //std::cout << std::endl;
+    
 //    dct(feature.rawData(), siz, 1);
 
     dct2(feature.rawData(), siz);
 
+    //for(int i=0; i<siz; i++) std::cout << feature[i] << " ";
+    //std::cout << std::endl;
+    
     feature.resize(cepsNum);
+
+    //for(int i=0; i<cepsNum; i++) std::cout << feature[i] << " ";
+    //std::cout << std::endl << std::endl;
 
     return SP_SUCCESS;
 }
