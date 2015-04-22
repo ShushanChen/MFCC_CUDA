@@ -15,7 +15,7 @@ char wavFileName[1024] = "\0";
 void reportMatlab(FeatureExtractor &extractor);
 bool dealOpts(int argc, char **argv);
 
-FEATURE_DATA maxEmpData[MAX_BUFFER_SIZE];
+//FEATURE_DATA maxEmpData[MAX_BUFFER_SIZE];
 
 int main(int argc, char **argv) {
     if(! dealOpts(argc, argv))
@@ -23,7 +23,7 @@ int main(int argc, char **argv) {
 
     //cudaDeviceSynchronize();
     
-    FeatureExtractor extractor(maxEmpData);
+    FeatureExtractor extractor(threadNum);
 
     RawData data;
 
@@ -128,50 +128,21 @@ void storeFeas(const std::vector<Feature> & data, const char *filename) {
     out.close();
 }
 void reportMatlab(FeatureExtractor &extractor) {
-    //const vector<double> &empData = extractor.getEmpData();
+    const vector<double> &empData = extractor.getEmpData();
+    storeVector(empData, "emp.txt");
 
-    //storeVector(empData, "emp.txt");
+    const Matrix<double> &windows = extractor.getWindows();
+    storeMatrix(windows, "windows.txt");
 
-    const FEATURE_DATA *externEmpData = extractor.getExEmpData();
-    const int e_SizeEmp = extractor.getSizeEmpData();
-    storeBareVector(externEmpData, e_SizeEmp, "e_emp.txt");
+    const Matrix<double> &powSpec = extractor.getPowSpectrum();
+    storeMatrix(powSpec, "powSpec.txt");
 
-    //const Matrix<double> &windows = extractor.getWindows();
-    //storeMatrix(windows, "windows.txt");
-
-    FEATURE_DATA **e_windows = extractor.getExWindows();
-    const int tmp_frameNum = extractor.getExFrameNum();
-    const int tmp_frameSize = extractor.getExFrameSize();
-    int samplePerWin = ceil(extractor.getWinTime() * extractor.getSampleRate());
-    storeBareMatrix(e_windows, tmp_frameNum, tmp_frameSize, "e_windows.txt");
-    //storeBareMatrix(e_windows, tmp_frameNum, samplePerWin, "e_windows.txt");
-
+    const Matrix<double> &melLog = extractor.getMelLogSpec();
+    storeMatrix(melLog, "melLogSpec.txt");
     
-    //const Matrix<double> &powSpec = extractor.getPowSpectrum();
-    //storeMatrix(powSpec, "powSpec.txt");
-
-    FEATURE_DATA **e_powSpec = extractor.getExPowSpec();
-    const int tmp_powFrameSize = extractor.getExPowFrameSize();
-    //std::cout << "Frame Num: " << tmp_frameNum <<", powFrameSize: "<<tmp_powFrameSize << endl;
-    storeBareMatrix(e_powSpec, tmp_frameNum, tmp_powFrameSize, "e_powSpec.txt");
-    
-    
-    //const Matrix<double> &melLog = extractor.getMelLogSpec();
-    //storeMatrix(melLog, "melLogSpec.txt");
-    
-    FEATURE_DATA **e_melLogSpec = extractor.getExMelLogSpec();
-    const int tmp_nfilts = extractor.getNfilts();
-    storeBareMatrix(e_melLogSpec, tmp_nfilts, tmp_frameNum, "e_melLogSpec.txt");
-
-    //const vector<Feature> & featrues = extractor.getMelCepstrum();
-    //storeFeas(featrues, "melCeps.txt");
-
     const vector<Feature> & featrues = extractor.getMelCepstrum();
-    storeFeas(featrues, "e_melCeps.txt");
+    storeFeas(featrues, "melCeps.txt");
 
-    //const vector<Feature> & normals = extractor.getNormalMelCepstrum();
-    //storeFeas(normals , "normalMelCeps.txt");
-   
     const vector<Feature> & normals = extractor.getNormalMelCepstrum();
-    storeFeas(normals , "e_normalMelCeps.txt");
+    storeFeas(normals , "normalMelCeps.txt");
 }

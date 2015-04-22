@@ -28,6 +28,7 @@ class FeatureExtractor{
     CONST_REFERENCE_READ_ONLY_DECLARE(int, e_melSize, ExMelSize)
     CONST_REFERENCE_READ_ONLY_DECLARE(int, e_filterSize, ExFilterSize)
     CONST_REFERENCE_READ_ONLY_DECLARE(bool, e_melWtsExist, ExMelWtsExist)
+    CONST_REFERENCE_READ_ONLY_DECLARE(bool, isCuda, CudaFlag)
     CONST_REFERENCE_READ_ONLY_DECLARE(Matrix<double> , windows, Windows)
     CONST_REFERENCE_READ_ONLY_DECLARE(Matrix<double> , powSpec, PowSpectrum)
     CONST_REFERENCE_READ_ONLY_DECLARE(Matrix<double> , melLogSpec, MelLogSpec)
@@ -191,7 +192,9 @@ protected:
             double (*winFunc)(int, int) );
     
 public:
-    FeatureExtractor() :threadNum(DEFAULT_THREAD_NUM), \
+    FeatureExtractor() : \
+            isCuda(false), \
+            threadNum(DEFAULT_THREAD_NUM), \
             sampleRate(SAMPLE_RATE), \
             preEmpFactor(SP_PREEMPH_FACTOR), \
             winTime(WINTIME), \
@@ -204,6 +207,7 @@ public:
             nfilts(MEL_FILTER_NUM), \
             cepsNum(CEPS_NUM) {}
     FeatureExtractor(FEATURE_DATA *maxEmpData) : \
+            isCuda(true), \
             e_emp_data(maxEmpData), \
             e_melWtsExist(MEL_WTS_EXIST), \
             threadNum(DEFAULT_THREAD_NUM), \
@@ -218,7 +222,9 @@ public:
             mel2hzFunc(FeatureExtractor::mel2hz), \
             nfilts(MEL_FILTER_NUM), \
             cepsNum(CEPS_NUM) {}
-    FeatureExtractor(int threadNum) : threadNum(threadNum), \
+    FeatureExtractor(int threadNum) : \
+            isCuda(false), \
+            threadNum(threadNum), \
             sampleRate(SAMPLE_RATE), \
             preEmpFactor(SP_PREEMPH_FACTOR), \
             winTime(WINTIME), \
@@ -231,14 +237,16 @@ public:
             nfilts(MEL_FILTER_NUM), \
             cepsNum(CEPS_NUM) {}
     ~FeatureExtractor() {
-        free(e_windows[0]);
-        free(e_windows);
-        free(e_powSpec[0]);
-        free(e_powSpec);
-        free(e_melWts[0]);
-        free(e_melWts);
-        free(e_melLogSpec[0]);
-        free(e_melLogSpec);
+        if(isCuda){
+            free(e_windows[0]);
+            free(e_windows);
+            free(e_powSpec[0]);
+            free(e_powSpec);
+            free(e_melWts[0]);
+            free(e_melWts);
+            free(e_melLogSpec[0]);
+            free(e_melLogSpec);
+        }
     }
 
     void doubleDelta(std::vector<Feature> &normalMelCeps);
