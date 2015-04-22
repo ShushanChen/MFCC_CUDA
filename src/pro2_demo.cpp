@@ -23,9 +23,7 @@ int main(int argc, char **argv) {
 
     //cudaDeviceSynchronize();
     
-    //FeatureExtractor extractor(threadNum);
     FeatureExtractor extractor(maxEmpData);
- //   FeatureExtractor extractor2(threadNum);
 
     RawData data;
 
@@ -36,9 +34,7 @@ int main(int argc, char **argv) {
         load_wav_file(wavFileName, data);
 
     extractor.exFeatures(&data);
-//    extractor2.exFeatures(&data);
 
-    std::cout << "  Begin to report the data....\n" << std::endl;
     reportMatlab(extractor);
 
     return 0;
