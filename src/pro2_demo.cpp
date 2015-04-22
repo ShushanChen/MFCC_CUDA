@@ -174,6 +174,8 @@ void reportMatlab(FeatureExtractor &extractor) {
     storeFeas(featrues, "e_melCeps.txt");
 
     //const vector<Feature> & normals = extractor.getNormalMelCepstrum();
-
     //storeFeas(normals , "normalMelCeps.txt");
+   
+    const vector<Feature> & normals = extractor.getNormalMelCepstrum();
+    storeFeas(normals , "e_normalMelCeps.txt");
 }

@@ -106,12 +106,12 @@ SP_RESULT FeatureExtractor::exFeatures(const RawData *data, \
     double t_dctCep = finishT-startT;
     totalTime += t_dctCep;
 
-    //startT = wtime();
-    //time_t start = time(0);
-    //normalization(normalMelCeps, melCeps);
-    //finishT = wtime();
-    //double t_norm = finishT-startT;
-    //totalTime += t_norm;
+    startT = wtime();
+    time_t start = time(0);
+    normalization(normalMelCeps, melCeps);
+    finishT = wtime();
+    double t_norm = finishT-startT;
+    totalTime += t_norm;
 
     //std::cout << "Total Time: " << totalTime << std::endl;
     //std::cout << "PreEmp: " << t_preemp << " s , " << t_preemp*100/totalTime <<"%" <<std::endl;
