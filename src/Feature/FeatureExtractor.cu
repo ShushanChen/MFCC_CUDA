@@ -95,6 +95,7 @@ SP_RESULT FeatureExtractor::exFeatures(const RawData *data, \
     double t_norm = finishT-startT;
     totalTime += t_norm;
 
+    doubleDelta(normalMelCeps);
 
     std::cout << "Total Time: " << totalTime << std::endl;
     std::cout << "PreEmp: " << t_preemp << " s , " << t_preemp*100/totalTime <<"%" <<std::endl;
