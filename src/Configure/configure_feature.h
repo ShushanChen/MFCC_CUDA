@@ -23,6 +23,7 @@ const double MAX_F = 4000.0; //(SAMPLE_RATE / 2.0);
 const int    CEPS_NUM = 13;
 // so the feature will be 13*(2+1)
 const int    DELTA_TIMES = 2;
+const bool   MEL_WTS_EXIST = false;
 
 #define DATA_PRECISION 12
 #endif

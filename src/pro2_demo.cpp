@@ -38,6 +38,7 @@ int main(int argc, char **argv) {
     extractor.exFeatures(&data);
 //    extractor2.exFeatures(&data);
 
+    std::cout << "  Begin to report the data....\n" << std::endl;
     reportMatlab(extractor);
 
     return 0;
@@ -151,17 +152,20 @@ void reportMatlab(FeatureExtractor &extractor) {
 
     
     //const Matrix<double> &powSpec = extractor.getPowSpectrum();
-
     //storeMatrix(powSpec, "powSpec.txt");
 
     FEATURE_DATA **e_powSpec = extractor.getExPowSpec();
     const int tmp_powFrameSize = extractor.getExPowFrameSize();
-    std::cout << "Frame Num: " << tmp_frameNum <<", powFrameSize: "<<tmp_powFrameSize << endl;
+    //std::cout << "Frame Num: " << tmp_frameNum <<", powFrameSize: "<<tmp_powFrameSize << endl;
     storeBareMatrix(e_powSpec, tmp_frameNum, tmp_powFrameSize, "e_powSpec.txt");
     
+    
     //const Matrix<double> &melLog = extractor.getMelLogSpec();
-
     //storeMatrix(melLog, "melLogSpec.txt");
+    
+    FEATURE_DATA **e_melLogSpec = extractor.getExMelLogSpec();
+    const int tmp_nfilts = extractor.getNfilts();
+    storeBareMatrix(e_melLogSpec, tmp_nfilts, tmp_frameNum, "e_melLogSpec.txt");
 
     //const vector<Feature> & featrues = extractor.getMelCepstrum();
 

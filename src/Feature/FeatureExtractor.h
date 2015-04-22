@@ -25,6 +25,9 @@ class FeatureExtractor{
     CONST_REFERENCE_READ_ONLY_DECLARE(int, e_frameNum, ExFrameNum)
     CONST_REFERENCE_READ_ONLY_DECLARE(int, e_frameSize, ExFrameSize)
     CONST_REFERENCE_READ_ONLY_DECLARE(int, e_powFrameSize, ExPowFrameSize)
+    CONST_REFERENCE_READ_ONLY_DECLARE(int, e_melSize, ExMelSize)
+    CONST_REFERENCE_READ_ONLY_DECLARE(int, e_filterSize, ExFilterSize)
+    CONST_REFERENCE_READ_ONLY_DECLARE(bool, e_melWtsExist, ExMelWtsExist)
     CONST_REFERENCE_READ_ONLY_DECLARE(Matrix<double> , windows, Windows)
     CONST_REFERENCE_READ_ONLY_DECLARE(Matrix<double> , powSpec, PowSpectrum)
     CONST_REFERENCE_READ_ONLY_DECLARE(Matrix<double> , melLogSpec, MelLogSpec)
@@ -35,6 +38,8 @@ class FeatureExtractor{
     READ_WRITE_DECLARE(FEATURE_DATA *, e_emp_data, ExEmpData)
     READ_WRITE_DECLARE(FEATURE_DATA **, e_windows, ExWindows)
     READ_WRITE_DECLARE(FEATURE_DATA **, e_powSpec, ExPowSpec)
+    READ_WRITE_DECLARE(FEATURE_DATA **, e_melLogSpec, ExMelLogSpec)
+    READ_WRITE_DECLARE(FEATURE_DATA **, e_melWts, ExMelWts)
     READ_WRITE_DECLARE(int , sampleRate, SampleRate);
     READ_WRITE_DECLARE(double , preEmpFactor, PreEmpFactor);
     READ_WRITE_DECLARE(double, winTime, WinTime);
@@ -142,6 +147,10 @@ protected:
             Matrix<double> &wts, \
             Matrix<double> & powSpec);
 
+    SP_RESULT MatrixMul01(FEATURE_DATA ***p_melLog, \
+            FEATURE_DATA **wts, \
+            FEATURE_DATA **powSpec);
+
     SP_RESULT fft2MelLog(int nfft, \
             Matrix<double> &melLog, \
             Matrix<double> & powSpec, \
@@ -151,6 +160,18 @@ protected:
             double minF = MIN_F, \
             double maxF = MAX_F, \
             int sampleRate = SAMPLE_RATE);
+
+    
+    SP_RESULT fft2MelLog(int nfft, \
+            FEATURE_DATA ***p_melLog, \
+            FEATURE_DATA **powSpec, \
+            int nfilts = MEL_FILTER_NUM, \
+            double (*hz2melFunc)(double) = FeatureExtractor::hz2mel, \
+            double (*mel2hzFunc)(double) = FeatureExtractor::mel2hz, \
+            double minF = MIN_F, \
+            double maxF = MAX_F, \
+            int sampleRate = SAMPLE_RATE);
+
 
     SP_RESULT mel2dct(Feature & feature, std::vector<double> melLog, int cepsNum = CEPS_NUM);
 
@@ -168,6 +189,16 @@ protected:
             int nfilts = MEL_FILTER_NUM, \
             double (*hz2melFunc)(double) = FeatureExtractor::hz2mel, \
             double (*mel2hzFunc)(double) = FeatureExtractor::mel2hz);
+
+    SP_RESULT getWts(FEATURE_DATA ***p_wts, \
+            int nfft, \
+            double minF = MIN_F, \
+            double maxF = MAX_F, \
+            int sampleRate = SAMPLE_RATE, \
+            int nfilts = MEL_FILTER_NUM, \
+            double (*hz2melFunc)(double) = FeatureExtractor::hz2mel, \
+            double (*mel2hzFunc)(double) = FeatureExtractor::mel2hz);
+    
 
     SP_RESULT windowMul(std::vector<double> &window, \
             double (*winFunc)(int, int) );
@@ -190,7 +221,8 @@ public:
             nfilts(MEL_FILTER_NUM), \
             cepsNum(CEPS_NUM) {}
     FeatureExtractor(FEATURE_DATA *maxEmpData) : \
-            e_emp_data(maxEmpData),
+            e_emp_data(maxEmpData), \
+            e_melWtsExist(MEL_WTS_EXIST), \
             threadNum(DEFAULT_THREAD_NUM), \
             sampleRate(SAMPLE_RATE), \
             preEmpFactor(SP_PREEMPH_FACTOR), \
@@ -220,6 +252,10 @@ public:
         free(e_windows);
         free(e_powSpec[0]);
         free(e_powSpec);
+        free(e_melWts[0]);
+        free(e_melWts);
+        free(e_melLogSpec[0]);
+        free(e_melLogSpec);
     }
 
     void doubleDelta(std::vector<Feature> &normalMelCeps);

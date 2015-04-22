@@ -53,12 +53,16 @@ SP_RESULT FeatureExtractor::exFeatures(const RawData *data, \
     double startT, finishT;
     double totalTime = 0;
 
+    std::cout << "\n  Get the preemphasized data ...\n";
+
     startT = wtime();
     //res = preEmph(emp_data, data->getData(), data->getFrameNum(), preEmpFactor);
     res = preEmph(e_emp_data, data->getData(), data->getFrameNum(), preEmpFactor);
     finishT = wtime();
     double t_preemp = finishT-startT;
     totalTime += t_preemp;
+
+    std::cout << "  Get the windows ...\n";
 
     startT = wtime();
     //res = windowing(windows, emp_data, winTime, stepTime, sampleRate, winFunc);
@@ -73,6 +77,8 @@ SP_RESULT FeatureExtractor::exFeatures(const RawData *data, \
     //double t_fftpad = finishT-startT;
     //totalTime += t_fftpad;
 
+    std::cout << "  Get the Power Spectrum...\n";
+
     startT = wtime();
     //powSpectrum(powSpec, windows);
     powSpectrum(e_powSpec, e_windows);
@@ -81,14 +87,17 @@ SP_RESULT FeatureExtractor::exFeatures(const RawData *data, \
     totalTime += t_powSpec;
 
     //if(powSpec.size() == 0) return SP_SUCCESS;
+    
+    std::cout << "  Get the MelLog Spectrum...\n";
 
-    //int nfft = (powSpec[0].size() -1) << 1;
+    int nfft = (e_powFrameSize -1) << 1;
 
-    //startT = wtime();
+    startT = wtime();
     //fft2MelLog(nfft, melLogSpec, powSpec, nfilts, hz2melFunc, mel2hzFunc, minF, maxF, sampleRate);
-    //finishT = wtime();
-    //double t_mel = finishT-startT;
-    //totalTime += t_mel;
+    fft2MelLog(nfft, &e_melLogSpec, e_powSpec, nfilts, hz2melFunc, mel2hzFunc, minF, maxF, sampleRate);
+    finishT = wtime();
+    double t_mel = finishT-startT;
+    totalTime += t_mel;
 
     //startT = wtime();
     //melCepstrum(melCeps, melLogSpec, cepsNum);
@@ -297,7 +306,7 @@ SP_RESULT FeatureExtractor::powSpectrum(FEATURE_DATA **powSpec, \
         elementNum = frameNum * frameSize, 
         selIdx = (int)(std::log2(frameSize))%2;
     
-    std::cout << "FrameNum: "<< frameNum <<", FrameSize: " << frameSize << ", blockSize: " << blockSize << ", elementNum: " << elementNum << std::endl;
+    //std::cout << "FrameNum: "<< frameNum <<", FrameSize: " << frameSize << ", blockSize: " << blockSize << ", elementNum: " << elementNum << std::endl;
     
     // Memory Size for whole data
     size_t memSize = elementNum * 2 *sizeof(FEATURE_DATA);
@@ -314,13 +323,13 @@ SP_RESULT FeatureExtractor::powSpectrum(FEATURE_DATA **powSpec, \
     memset(SpeechSignal_real, 0, memSize);
     memcpy(SpeechSignal_real, windows[0], memSize/2);
    
-    for(int i=0; i<frameNum; i++){
-        int beginIdx = i*frameSize;
-        for(int j=0; j<frameSize; j++){
-            if(SpeechSignal_real[beginIdx+j] != windows[i][j])
-                std::cout << "Not equal!!!!!!!!!" << std::endl;
-        }
-    }
+    //for(int i=0; i<frameNum; i++){
+    //    int beginIdx = i*frameSize;
+    //    for(int j=0; j<frameSize; j++){
+    //        if(SpeechSignal_real[beginIdx+j] != windows[i][j])
+    //            std::cout << "Not equal!!!!!!!!!" << std::endl;
+    //    }
+    //}
 
     double startT, finishT, calcStartT, calcEndT;
     calcStartT = startT = wtime();
@@ -416,6 +425,68 @@ SP_RESULT FeatureExtractor::getWts(Matrix<double> &wts, \
     return SP_SUCCESS;
 }
 
+
+SP_RESULT FeatureExtractor::getWts(FEATURE_DATA ***p_wts, \
+        int nfft, \
+        double minF, \
+        double maxF, \
+        int sampleRate, \
+        int nfilts, \
+        double (*hz2melFunc)(double), \
+        double (*mel2hzFunc)(double)) {
+
+    int nfreqs = nfft / 2 + 1;
+    std::vector<double> points;
+
+    FEATURE_DATA ** wts;
+    wts = (FEATURE_DATA **) malloc(nfilts*sizeof(FEATURE_DATA *)); 
+    size_t memSize = nfilts * nfreqs * sizeof(FEATURE_DATA);
+    FEATURE_DATA * wtsData = (FEATURE_DATA *)malloc(memSize); 
+    memset(wtsData,0, memSize);
+
+    double minmel = hz2melFunc(minF);
+    double maxmel = hz2melFunc(maxF);
+    double step = (maxmel - minmel) / (nfilts + 1);
+    for(int i = 0; i <= nfilts + 1; i++) 
+        points.push_back(mel2hzFunc( minmel + step * i));
+
+    for(int i = 0; i <= nfilts + 1; i++) {
+        points[i] = ceil(points[i] / sampleRate * (nfft - 1));
+    }
+    for(int i = 0;i < nfilts;i++) {
+        //wts.push_back(std::vector<double>());
+        
+        //std::vector<double> &filter = wts[i];
+        wts[i] = &wtsData[i*nfreqs];
+
+        int lp = points[i], mp = points[i+1], rp = points[i+2];
+        double lf = 1.0 * points[i] / nfft * sampleRate;
+        double mf = 1.0 * points[i+1] / nfft * sampleRate;
+        double rf = 1.0 * points[i+2] / nfft * sampleRate;
+
+        //while(filter.size() < lp)
+        //    filter.push_back(0.0);
+
+        for(int k = lp;k <= mp;k++){ 
+            //filter.push_back((1.0*k/nfft * sampleRate - lf) / (mf - lf));
+            wts[i][k] = (1.0*k/nfft * sampleRate - lf) / (mf - lf);
+        }
+        for(int k = mp+1;k <= rp;k++){ 
+            //filter.push_back((rf - 1.0*k/nfft * sampleRate) / (rf - mf));
+            wts[i][k] = (rf - 1.0*k/nfft * sampleRate) / (rf - mf);
+        }
+        
+        //while(filter.size() < nfreqs) 
+        //    filter.push_back(0.0);
+    }
+
+    e_filterSize = nfreqs;
+    e_melWtsExist = true;
+    *p_wts = wts;
+    return SP_SUCCESS;
+}
+
+
 /*  
 SP_RESULT FeatureExtractor::getMelLog(std::vector<double> & melLog, \
         const std::vector<double> & powSpec, \
@@ -451,22 +522,129 @@ SP_RESULT FeatureExtractor::getMelLog(std::vector<double> & melLog, \
 
     delete task_info;
 }*/
-SP_RESULT FeatureExtractor::MatrixMul01(Matrix<double> & melLog, \
-        Matrix<double> &wts, \
-        Matrix<double> & powSpec) {
-    double *h_melLog, *h_wts, *h_powSpec;
-    double *d_melLog, *d_wts, *d_powSpec;
+
+
+//SP_RESULT FeatureExtractor::MatrixMul01(Matrix<double> & melLog, \
+//        Matrix<double> &wts, \
+//        Matrix<double> & powSpec) {
+//    double *h_melLog, *h_wts, *h_powSpec;
+//    double *d_melLog, *d_wts, *d_powSpec;
+//    
+//    size_t memSize1 = wts.size()*powSpec.size()*sizeof(double),
+//        memSize2 = wts.size() * wts[0].size()*sizeof(double),
+//        memSize3 = powSpec.size() * powSpec[0].size() * sizeof(double);
+//    
+//    h_melLog = (double *)malloc(memSize1);
+//    h_wts = (double *)malloc(memSize2);
+//    h_powSpec = (double *)malloc(memSize3);
+//    
+//    matrix2vector(wts, h_wts);
+//    matrix2vector(powSpec, h_powSpec);
+//    
+//  //  for(int i=0; i<wts.size(); i++){
+//  //      int offset = wts[0].size()*i;
+//  //      for(int j=0; j<wts[0].size(); j++){
+//  //          if(wts[i][j]!=*(h_wts+offset+j))
+//  //              std::cout << "\n WTS not equal \n";
+//  //      }
+//  //  }
+//  //  for(int i=0; i<powSpec.size(); i++){
+//  //      int offset = powSpec[0].size()*i;
+//  //      for(int j=0; j<powSpec[0].size(); j++){
+//  //          if(powSpec[i][j]!=*(h_powSpec+offset+j))
+//  //              std::cout << "\n powSpec not equal \n";
+//  //      }
+//  //  }
+//  //  
+//    double startT = wtime();
+//    
+//    cudaMalloc((void **)&d_melLog, memSize1);
+//    cudaMalloc((void **)&d_wts, memSize2);
+//    cudaMalloc((void **)&d_powSpec, memSize3);
+//    
+//    cudaMemcpy(d_wts, h_wts, memSize2, cudaMemcpyHostToDevice);
+//    cudaMemcpy(d_powSpec, h_powSpec, memSize3, cudaMemcpyHostToDevice);
+//
+//    int bucketNum = (((powSpec.size()-1)/BLOCK_SIZE+1)-1)/COL_STEP+1;
+//    int blockNum = (wts.size()-1)/BLOCK_SIZE+1;
+//    
+//    dim3 dimBlock(BLOCK_SIZE, BLOCK_SIZE);
+//    dim3 dimGrid(bucketNum,blockNum);
+//    int r = wts.size(), c = powSpec.size();
+//    
+//    //printf("%d %d %d\n", r, c, wts[0].size());
+//    matrix_mul_kernel<<<dimGrid,dimBlock>>>(d_wts, d_powSpec, d_melLog, r, wts[0].size(), c);
+//
+//    cudaMemcpy(h_melLog, d_melLog, memSize1, cudaMemcpyDeviceToHost);
+//    
+//    double endT = wtime();
+//    printf("mel filtering calculation time %lf\n", endT-startT);
+////    printf("%d %d %d %d\n", wts.size(), wts[0].size(), powSpec[0].size(), powSpec.size());
+//    melLog.resize(r);
+//    for(int i = 0;i < r;i++)
+//        melLog[i].resize(c);
+//
+//    vector2matrix(h_melLog, melLog);
+//    
+//    /*
+//    for(int i = 0;i < r;i++) {
+//        for(int j = 0;j < c;j++) {
+//            printf("%lf ", melLog[i][j]); 
+//        }
+//        puts("");
+//    }
+//    */
+//    
+//    
+//    /*
+//    for(int i = 0;i < r;i++) {
+//        for(int j = 0;j < c;j++) {
+//            melLog[i][j] = 0.0;
+//            int mx = std::min(wts[i].size(), powSpec[j].size());
+//            for(int k = 0;k < mx;k++)
+//                melLog[i][j] += wts[i][k] * powSpec[j][k];
+//        }
+//    }
+//    */
+//
+//    free(h_melLog);
+//    free(h_wts);
+//    free(h_powSpec);
+//    cudaFree(d_melLog);
+//    cudaFree(d_wts);
+//    cudaFree(d_powSpec);
+//    
+//    return SP_SUCCESS;
+//}
+
+SP_RESULT FeatureExtractor::MatrixMul01(FEATURE_DATA ***p_melLog, \
+        FEATURE_DATA **wts, \
+        FEATURE_DATA **powSpec) {
+    FEATURE_DATA *h_melLog, *h_wts, *h_powSpec;
+    FEATURE_DATA *d_melLog, *d_wts, *d_powSpec;
+    FEATURE_DATA **melLog;
     
-    size_t memSize1 = wts.size()*powSpec.size()*sizeof(double),
-        memSize2 = wts.size() * wts[0].size()*sizeof(double),
-        memSize3 = powSpec.size() * powSpec[0].size() * sizeof(double);
+    //size_t memSize1 = wts.size()*powSpec.size()*sizeof(double),
+    //    memSize2 = wts.size() * wts[0].size()*sizeof(double),
+    //    memSize3 = powSpec.size() * powSpec[0].size() * sizeof(double);
     
-    h_melLog = (double *)malloc(memSize1);
-    h_wts = (double *)malloc(memSize2);
-    h_powSpec = (double *)malloc(memSize3);
+    size_t memSize1 = nfilts * e_frameNum * sizeof(FEATURE_DATA),
+        memSize2 = nfilts * e_filterSize * sizeof(FEATURE_DATA),
+        memSize3 = e_frameNum * e_powFrameSize * sizeof(FEATURE_DATA);
     
-    matrix2vector(wts, h_wts);
-    matrix2vector(powSpec, h_powSpec);
+    //h_melLog = (double *)malloc(memSize1);
+    h_melLog = (FEATURE_DATA *)malloc(memSize1);
+    
+    //h_wts = (double *)malloc(memSize2);
+    h_wts = wts[0];
+    
+    //h_powSpec = (double *)malloc(memSize3);
+    h_powSpec = powSpec[0];
+    
+    
+    //matrix2vector(wts, h_wts);
+    //matrix2vector(powSpec, h_powSpec);
+    
     
   //  for(int i=0; i<wts.size(); i++){
   //      int offset = wts[0].size()*i;
@@ -492,26 +670,37 @@ SP_RESULT FeatureExtractor::MatrixMul01(Matrix<double> & melLog, \
     cudaMemcpy(d_wts, h_wts, memSize2, cudaMemcpyHostToDevice);
     cudaMemcpy(d_powSpec, h_powSpec, memSize3, cudaMemcpyHostToDevice);
 
-    int bucketNum = (((powSpec.size()-1)/BLOCK_SIZE+1)-1)/COL_STEP+1;
-    int blockNum = (wts.size()-1)/BLOCK_SIZE+1;
+    //int bucketNum = (((powSpec.size()-1)/BLOCK_SIZE+1)-1)/COL_STEP+1;
+    //int blockNum = (wts.size()-1)/BLOCK_SIZE+1;
     
+    int bucketNum = (((e_frameNum-1)/BLOCK_SIZE+1)-1)/COL_STEP+1;
+    int blockNum = (nfilts-1)/BLOCK_SIZE+1;
+    
+
     dim3 dimBlock(BLOCK_SIZE, BLOCK_SIZE);
     dim3 dimGrid(bucketNum,blockNum);
-    int r = wts.size(), c = powSpec.size();
+    int r = nfilts, c = e_frameNum;
     
     //printf("%d %d %d\n", r, c, wts[0].size());
-    matrix_mul_kernel<<<dimGrid,dimBlock>>>(d_wts, d_powSpec, d_melLog, r, wts[0].size(), c);
+    //matrix_mul_kernel<<<dimGrid,dimBlock>>>(d_wts, d_powSpec, d_melLog, r, wts[0].size(), c);
+    matrix_mul_kernel<<<dimGrid,dimBlock>>>(d_wts, d_powSpec, d_melLog, r, e_filterSize, c);
 
     cudaMemcpy(h_melLog, d_melLog, memSize1, cudaMemcpyDeviceToHost);
     
     double endT = wtime();
     printf("mel filtering calculation time %lf\n", endT-startT);
 //    printf("%d %d %d %d\n", wts.size(), wts[0].size(), powSpec[0].size(), powSpec.size());
-    melLog.resize(r);
-    for(int i = 0;i < r;i++)
-        melLog[i].resize(c);
-
-    vector2matrix(h_melLog, melLog);
+    
+    //melLog.resize(r);
+    melLog = (FEATURE_DATA **) malloc(nfilts * sizeof(FEATURE_DATA*));
+    for(int i = 0;i < r;i++){
+        //melLog[i].resize(c);
+        melLog[i] = &h_melLog[i*c];
+    }
+    
+    *p_melLog = melLog;
+    
+    //vector2matrix(h_melLog, melLog);
     
     /*
     for(int i = 0;i < r;i++) {
@@ -534,43 +723,93 @@ SP_RESULT FeatureExtractor::MatrixMul01(Matrix<double> & melLog, \
     }
     */
 
-    free(h_melLog);
-    free(h_wts);
-    free(h_powSpec);
     cudaFree(d_melLog);
     cudaFree(d_wts);
     cudaFree(d_powSpec);
     
     return SP_SUCCESS;
 }
+
+
+//SP_RESULT FeatureExtractor::fft2MelLog(int nfft, \
+//        Matrix<double> &melLog, \
+//        Matrix<double> & powSpec, \
+//        int nfilts , \
+//        double (*hz2melFunc)(double), \
+//        double (*mel2hzFunc)(double), \
+//        double minF, \
+//        double maxF, \
+//        int sampleRate) {
+//    Matrix<double> wts;
+//    
+//    double startT, finishT;
+//    startT = wtime();
+//    getWts(wts, nfft, minF, maxF, sampleRate, nfilts, hz2melFunc, mel2hzFunc);
+//    finishT = wtime();
+//    std::cout << "getWts: "<<finishT-startT << std::endl;
+//    
+//    melLog.clear();
+//
+//    startT = wtime();
+//    MatrixMul01(melLog, wts, powSpec);
+//    finishT = wtime();
+//    std::cout << "MatrixMul: "<<finishT-startT << std::endl;
+//
+//    startT = wtime();
+//    for(int i = 0;i < melLog.size();i++) 
+//        for(int j = 0;j < melLog[i].size();j++)
+//            melLog[i][j] = log(0.0001+fabs(melLog[i][j]));
+//    finishT = wtime();
+//    std::cout << "MelLog: "<<finishT-startT << std::endl;
+//
+//    return SP_SUCCESS;
+//}
+
+
 SP_RESULT FeatureExtractor::fft2MelLog(int nfft, \
-        Matrix<double> &melLog, \
-        Matrix<double> & powSpec, \
+        FEATURE_DATA ***p_melLog,
+        FEATURE_DATA **powSpec, \
         int nfilts , \
         double (*hz2melFunc)(double), \
         double (*mel2hzFunc)(double), \
         double minF, \
         double maxF, \
         int sampleRate) {
-    Matrix<double> wts;
+    //Matrix<double> wts;
     
     double startT, finishT;
     startT = wtime();
-    getWts(wts, nfft, minF, maxF, sampleRate, nfilts, hz2melFunc, mel2hzFunc);
+    std::cout << "    Begin to check if the MelFilter is existed...\n";
+    
+    if(!e_melWtsExist){
+        std::cout << "    Not exist. To get the MelFilter Windows...\n";
+        getWts(&e_melWts, nfft, minF, maxF, sampleRate, nfilts, hz2melFunc, mel2hzFunc);
+    }
     finishT = wtime();
     std::cout << "getWts: "<<finishT-startT << std::endl;
+    //melLog.clear();
     
-    melLog.clear();
+    //for(int i=0; i<nfilts; i++){
+    //    std::cout << "i=" << i << std::endl;
+    //    for(int j=0; j<e_filterSize; j++){
+    //        std::cout << e_melWts[i][j] << " ";
+    //    }
+    //    std::cout << std::endl;
+    //}
+
 
     startT = wtime();
-    MatrixMul01(melLog, wts, powSpec);
+    MatrixMul01(p_melLog, e_melWts, powSpec);
     finishT = wtime();
     std::cout << "MatrixMul: "<<finishT-startT << std::endl;
 
+    FEATURE_DATA **melLog = *p_melLog;
     startT = wtime();
-    for(int i = 0;i < melLog.size();i++) 
-        for(int j = 0;j < melLog[i].size();j++)
+    for(int i = 0;i < nfilts;i++) 
+        for(int j = 0;j < e_frameNum;j++){
+            //std::cout << " i = "<<i << ", j = "<<j<<"\n";
             melLog[i][j] = log(0.0001+fabs(melLog[i][j]));
+        }
     finishT = wtime();
     std::cout << "MelLog: "<<finishT-startT << std::endl;
 
