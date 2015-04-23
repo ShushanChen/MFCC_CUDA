@@ -68,15 +68,15 @@ SP_RESULT FeatureExtractor::exFeatures(const RawData *data, \
     //totalTime += t_window;
     
     startT = wtime();
-    preProcessing(e_windows, data->getData(), data->getFrameNum(), preEmpFactor, winTime, stepTime, sampleRate);
+    initializeTime = preProcessing(e_windows, data->getData(), data->getFrameNum(), preEmpFactor, winTime, stepTime, sampleRate);
     finishT = wtime();
-    double t_preProcessing = finishT-startT;
+    double t_preProcessing = finishT-startT-initializeTime;
     totalTime += t_preProcessing;
 
     startT = wtime();
-    initializeTime = powSpectrum(e_powSpec, e_windows);
+    powSpectrum(e_powSpec, e_windows);
     finishT = wtime();
-    double t_powSpec = finishT-startT-initializeTime;
+    double t_powSpec = finishT-startT;
     totalTime += t_powSpec;
     
 
@@ -104,7 +104,7 @@ SP_RESULT FeatureExtractor::exFeatures(const RawData *data, \
     doubleDelta(normalMelCeps);
 
     std::cout << "Initialize Time: " << initializeTime << std::endl;
-    std::cout << "Total Time (not include InitializeTime) : " << totalTime << std::endl;
+    std::cout << "Total Time (Without InitializeTime) : " << totalTime << std::endl;
     //std::cout << "PreEmp: " << t_preemp << " s , " << t_preemp*100/totalTime <<"%" <<std::endl;
     //std::cout << "Windowing: " << t_window << " s , " << t_window*100/totalTime <<"%" << std::endl;
     std::cout << "PreProcessing: " << t_preProcessing << " s , " << t_preProcessing*100/totalTime <<"%"<< std::endl;
@@ -233,8 +233,7 @@ SP_RESULT FeatureExtractor::reverseMatrix(FEATURE_DATA **outMatrix, FEATURE_DATA
 }
 
 
-
-double FeatureExtractor::powSpectrum(FEATURE_DATA **powSpec, \
+SP_RESULT FeatureExtractor::powSpectrum(FEATURE_DATA **powSpec, \
         FEATURE_DATA **windows) {
     
     int frameNum = e_frameNum, 
@@ -501,7 +500,7 @@ SP_RESULT FeatureExtractor::fft2MelLog(int nfft, \
 }
 
 
-SP_RESULT FeatureExtractor::preProcessing(FEATURE_DATA **out_windows, \
+double FeatureExtractor::preProcessing(FEATURE_DATA **out_windows, \
         const SOUND_DATA *rd, \
         int size, \
         double factor, \
@@ -524,6 +523,9 @@ SP_RESULT FeatureExtractor::preProcessing(FEATURE_DATA **out_windows, \
     FEATURE_DATA *window_data = (FEATURE_DATA *)malloc(paddedSize);
     memset(window_data, 0, paddedSize);
     
+    double startT, finishT, initializeTime;
+    startT = wtime();
+
     FEATURE_DATA *d_window_data;
     cudaMalloc( (void **) &d_window_data, paddedSize );
     cudaMemcpy( d_window_data, window_data, paddedSize, cudaMemcpyHostToDevice );
@@ -532,9 +534,12 @@ SP_RESULT FeatureExtractor::preProcessing(FEATURE_DATA **out_windows, \
     size_t rdMemSize = size*sizeof(SOUND_DATA);
     cudaMalloc( (void **) &d_rd, rdMemSize );
     cudaMemcpy( d_rd, rd, rdMemSize, cudaMemcpyHostToDevice );
+    
+    finishT = wtime();
+    initializeTime = finishT - startT;
 
     assert(nfft<=1024);
-    std::cout << "nfft: " << nfft << std::endl;
+    //std::cout << "nfft: " << nfft << std::endl;
     //size_t sharedMem = nfft*sizeof(FEATURE_DATA);
     dim3 dimGrid( ceil( (double)winsEleNum/nfft) );
     dim3 dimBlock(nfft);
@@ -549,7 +554,7 @@ SP_RESULT FeatureExtractor::preProcessing(FEATURE_DATA **out_windows, \
         e_windows[i] = &window_data[j];
     }
 
-    return SP_SUCCESS;
+    return initializeTime;
 }
 
 

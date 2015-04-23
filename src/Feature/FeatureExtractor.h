@@ -93,7 +93,7 @@ protected:
             int rate = SAMPLE_RATE, \
             double (*winFunc)(int, int) = FeatureExtractor::hanning);
 
-    SP_RESULT preProcessing(FEATURE_DATA** out_windows, \
+    double preProcessing(FEATURE_DATA** out_windows, \
             const SOUND_DATA* rd, \
             int size, \
             double factor = SP_PREEMPH_FACTOR, \
@@ -105,7 +105,7 @@ protected:
     
     SP_RESULT powSpectrum(Matrix<double> &powSpectrum, Matrix<double> &windows);
     //SP_RESULT powSpectrum(FEATURE_DATA **powSpectrum, FEATURE_DATA **windows);
-    double powSpectrum(FEATURE_DATA **powSpectrum, FEATURE_DATA **windows);
+    SP_RESULT powSpectrum(FEATURE_DATA **powSpectrum, FEATURE_DATA **windows);
 
     SP_RESULT melCepstrum(std::vector<Feature> &cepstrums, \
             const Matrix<double> &melLogSpec, \
