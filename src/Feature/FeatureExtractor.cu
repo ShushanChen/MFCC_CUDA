@@ -101,7 +101,7 @@ SP_RESULT FeatureExtractor::exFeatures(const RawData *data, \
     double t_norm = finishT-startT;
     totalTime += t_norm;
 
-    //doubleDelta(normalMelCeps);
+    doubleDelta(normalMelCeps);
 
     std::cout << "CUDA Initialize Time: " << initializeTime << std::endl;
     std::cout << "Total Time (Without InitializeTime) : " << totalTime << std::endl;
