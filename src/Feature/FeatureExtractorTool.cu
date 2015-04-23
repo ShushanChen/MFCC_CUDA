@@ -23,7 +23,7 @@
 //Y}
 
 __global__
-void mel2dct_kernel(FEATURE_DATA *d_melLogSpec_data, int unitSize, double arg_PI){
+void mel2dct_kernel(FEATURE_DATA *d_melLogSpec_data, int unitSize, int cepsNum, double arg_PI){
     extern __shared__ FEATURE_DATA s_data[];
     
     size_t blockOffset = blockDim.x*blockIdx.x;
@@ -34,16 +34,18 @@ void mel2dct_kernel(FEATURE_DATA *d_melLogSpec_data, int unitSize, double arg_PI
     int frameIdx = threadIdx.x/unitSize;
     int innerIdx = threadIdx.x % unitSize;
     
-    int frameBegin = unitSize*frameIdx, 
-        frameEnd = unitSize*(frameIdx+1);
+    if(innerIdx < cepsNum){
+        int frameBegin = unitSize*frameIdx, 
+            frameEnd = unitSize*(frameIdx+1);
     
-    FEATURE_DATA result = 0;
-    double constVal = arg_PI*innerIdx/unitSize;
-    for(int j=frameBegin; j<frameEnd; j++){
-       result += s_data[j]*cos(constVal*(j-frameBegin+0.5)); 
-    } 
+        FEATURE_DATA result = 0;
+        double constVal = arg_PI*innerIdx/unitSize;
+        for(int j=frameBegin; j<frameEnd; j++){
+            result += s_data[j]*cos(constVal*(j-frameBegin+0.5)); 
+        } 
 
-    d_melLogSpec_data[totalOffset] = result * sqrt(1.0/unitSize);
+        d_melLogSpec_data[totalOffset] = result * sqrt(1.0/unitSize);
+    }
 }
 
 

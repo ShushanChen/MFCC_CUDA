@@ -103,7 +103,7 @@ SP_RESULT FeatureExtractor::exFeatures(const RawData *data, \
 
     doubleDelta(normalMelCeps);
 
-    std::cout << "Initialize Time: " << initializeTime << std::endl;
+    std::cout << "CUDA Initialize Time: " << initializeTime << std::endl;
     std::cout << "Total Time (Without InitializeTime) : " << totalTime << std::endl;
     //std::cout << "PreEmp: " << t_preemp << " s , " << t_preemp*100/totalTime <<"%" <<std::endl;
     //std::cout << "Windowing: " << t_window << " s , " << t_window*100/totalTime <<"%" << std::endl;
@@ -203,7 +203,7 @@ SP_RESULT FeatureExtractor::melCepstrum(std::vector<Feature> &cepstrums, \
     size_t sharedMem = blockSize*sizeof(FEATURE_DATA);
     dim3 dimGrid( ceil((double)elementNum/blockSize) );
     dim3 dimBlock(blockSize);
-    mel2dct_kernel<<< dimGrid, dimBlock, sharedMem>>>(d_melLogSpec_data, rowNum);
+    mel2dct_kernel<<< dimGrid, dimBlock, sharedMem>>>(d_melLogSpec_data, rowNum, cepsNum);
     cudaMemcpy(r_melLogSpec_data, d_melLogSpec_data, memSize, cudaMemcpyDeviceToHost);
 
     for(int i=0; i<colNum; i++){
@@ -257,27 +257,17 @@ SP_RESULT FeatureExtractor::powSpectrum(FEATURE_DATA **powSpec, \
     memset(SpeechSignal_real, 0, memSize);
     memcpy(SpeechSignal_real, windows[0], memSize/2);
 
-    double startT, finishT, initializeTime;
-    //double calcStartT, calcEndT;
-    //calcStartT = wtime();
-    startT = wtime();
     
     cudaMalloc( (void **) &d_SpeechSignal_real, memSize );
     cudaMemcpy( d_SpeechSignal_real, SpeechSignal_real, memSize, cudaMemcpyHostToDevice);
     d_SpeechSignal_imag = &d_SpeechSignal_real[elementNum];
 
-    finishT = wtime();
-    initializeTime = finishT-startT;
-    std::cout << "Cuda Initialize Time: " << initializeTime << std::endl;
     //std::cout << "The select index is: " << selIdx << std::endl;
 
     dim3 dimGrid( ceil( (double)elementNum/blockSize ) );
     dim3 dimBlock(blockSize);
     windowFFT_kernel<<< dimGrid, dimBlock, sharedMem >>>(d_SpeechSignal_real, d_SpeechSignal_imag, frameNum, frameSize, 1, selIdx);
     cudaMemcpy(SpeechSignal_real, d_SpeechSignal_real, memSize, cudaMemcpyDeviceToHost);
-    
-    //calcEndT = wtime();
-    //printf("PowerSpectrum calculation time: %lf\n", calcEndT - calcStartT - (finishT - startT));
     
     
     // Calculate the Power Spectrum
@@ -302,8 +292,7 @@ SP_RESULT FeatureExtractor::powSpectrum(FEATURE_DATA **powSpec, \
     cudaFree(d_SpeechSignal_real);
     delete []SpeechSignal_real;
 
-    //return SP_SUCCESS;
-    return initializeTime;
+    return SP_SUCCESS;
 }
 
 
@@ -472,20 +461,11 @@ SP_RESULT FeatureExtractor::fft2MelLog(int nfft, \
         double maxF, \
         int sampleRate) {
     
-    double startT, finishT;
-    startT = wtime();
-    
     if(!e_melWtsExist){
         getWts(&e_melWts, nfft, minF, maxF, sampleRate, nfilts, hz2melFunc, mel2hzFunc);
     }
-    finishT = wtime();
-    std::cout << "getWts: "<<finishT-startT << std::endl;
 
-
-    startT = wtime();
     MatrixMul01(p_melLog, e_melWts, powSpec);
-    finishT = wtime();
-    std::cout << "MatrixMul: "<<finishT-startT << std::endl;
 
     //FEATURE_DATA **melLog = *p_melLog;
     //startT = wtime();
