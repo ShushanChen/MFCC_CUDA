@@ -23,7 +23,7 @@
 //Y}
 
 __global__
-void mel2dct_cu(FEATURE_DATA *d_melLogSpec_data, int unitSize, double arg_PI){
+void mel2dct_kernel(FEATURE_DATA *d_melLogSpec_data, int unitSize, double arg_PI){
     extern __shared__ FEATURE_DATA s_data[];
     
     size_t blockOffset = blockDim.x*blockIdx.x;
@@ -181,7 +181,7 @@ void matrix_mul_kernel(d_type *sq_matrix_1, d_type *sq_matrix_2, d_type *sq_matr
 
 
 __global__
-void windowFFT_cu(FEATURE_DATA *d_SpeechSignal_real, FEATURE_DATA *d_SpeechSignal_imag, int frameNum, int frameSize, int f, int selIdx, double arg) {
+void windowFFT_kernel(FEATURE_DATA *d_SpeechSignal_real, FEATURE_DATA *d_SpeechSignal_imag, int frameNum, int frameSize, int f, int selIdx, double arg) {
     extern __shared__ char s_SpeechSignal[];
     int p, i, j, rollIdx=0, oldRollIdx;
     size_t innerIdx = threadIdx.x % frameSize, 
@@ -250,6 +250,33 @@ void windowFFT_cu(FEATURE_DATA *d_SpeechSignal_real, FEATURE_DATA *d_SpeechSigna
     d_SpeechSignal_real[tmpIdx] = s_signal_real[selIdx][innerIdx];
     d_SpeechSignal_imag[tmpIdx] = s_signal_imag[selIdx][innerIdx];
 }
+
+
+__global__
+void preProcessing_kernel(SOUND_DATA *d_rd, int rd_size, FEATURE_DATA *d_window_data, int samplePerWin, int stepPerWin, double factor, double arg_PI_factor){
+    if(threadIdx.x<samplePerWin){ 
+        //int frameIdx = blockIdx.x;
+        //int innerIdx = threadIdx.x;
+        size_t rd_idx = blockIdx.x*stepPerWin + threadIdx.x;
+        
+        if(rd_idx>=rd_size)
+            return;
+
+        size_t final_idx = blockIdx.x*blockDim.x + threadIdx.x;
+    
+        FEATURE_DATA result;
+
+        if(rd_idx==0)
+            result = 0;
+        else
+            result = 1.0*d_rd[rd_idx] - factor*d_rd[rd_idx-1];
+   
+        result *= (0.5-0.5*cos(arg_PI_factor*threadIdx.x));
+    
+        d_window_data[final_idx] = result;
+    }
+}
+
 
 
 __device__ 

@@ -129,15 +129,15 @@ void storeFeas(const std::vector<Feature> & data, const char *filename) {
 }
 void reportMatlab(FeatureExtractor &extractor) {
 
-    const FEATURE_DATA *externEmpData = extractor.getExEmpData();
-    const int e_SizeEmp = extractor.getSizeEmpData();
-    storeBareVector(externEmpData, e_SizeEmp, "cuda_emp.txt");
+    //const FEATURE_DATA *externEmpData = extractor.getExEmpData();
+    //const int e_SizeEmp = extractor.getSizeEmpData();
+    //storeBareVector(externEmpData, e_SizeEmp, "cuda_emp.txt");
 
 
     FEATURE_DATA **e_windows = extractor.getExWindows();
     const int tmp_frameNum = extractor.getExFrameNum();
     const int tmp_frameSize = extractor.getExFrameSize();
-    int samplePerWin = ceil(extractor.getWinTime() * extractor.getSampleRate());
+    //int samplePerWin = ceil(extractor.getWinTime() * extractor.getSampleRate());
     storeBareMatrix(e_windows, tmp_frameNum, tmp_frameSize, "cuda_windows.txt");
     
 

@@ -93,6 +93,14 @@ protected:
             int rate = SAMPLE_RATE, \
             double (*winFunc)(int, int) = FeatureExtractor::hanning);
 
+    SP_RESULT preProcessing(FEATURE_DATA** out_windows, \
+            const SOUND_DATA* rd, \
+            int size, \
+            double factor = SP_PREEMPH_FACTOR, \
+            double winTime = WINTIME, \
+            double stepTime = STEPTIME, \
+            int rate = SAMPLE_RATE);
+
     SP_RESULT fftPadding(Matrix<double> & out_pads);
     
     SP_RESULT powSpectrum(Matrix<double> &powSpectrum, Matrix<double> &windows);
