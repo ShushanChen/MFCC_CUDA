@@ -154,7 +154,10 @@ void reportMatlab(FeatureExtractor &extractor) {
     const vector<Feature> & featrues = extractor.getMelCepstrum();
     storeFeas(featrues, "cuda_melCeps.txt");
    
+    //FEATURE_DATA **e_melCeps = extractor.getExMelCeps();
+    //const int tmp_cepsNum = extractor.getCepsNum();
+    //storeBareMatrix(e_melCeps, tmp_frameNum, tmp_cepsNum, "cuda_melCeps.txt");
     
-    const vector<Feature> & normals = extractor.getNormalMelCepstrum();
-    storeFeas(normals , "cuda_normalMelCeps.txt");
+    //const vector<Feature> & normals = extractor.getNormalMelCepstrum();
+    //storeFeas(normals , "cuda_normalMelCeps.txt");
 }

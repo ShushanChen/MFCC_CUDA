@@ -101,14 +101,14 @@ SP_RESULT FeatureExtractor::exFeatures(const RawData *data, \
     double t_norm = finishT-startT;
     totalTime += t_norm;
 
-    doubleDelta(normalMelCeps);
+    //doubleDelta(normalMelCeps);
 
     std::cout << "CUDA Initialize Time: " << initializeTime << std::endl;
     std::cout << "Total Time (Without InitializeTime) : " << totalTime << std::endl;
     //std::cout << "PreEmp: " << t_preemp << " s , " << t_preemp*100/totalTime <<"%" <<std::endl;
     //std::cout << "Windowing: " << t_window << " s , " << t_window*100/totalTime <<"%" << std::endl;
     std::cout << "PreProcessing: " << t_preProcessing << " s , " << t_preProcessing*100/totalTime <<"%"<< std::endl;
-    std::cout << "PowerSpectrum: " << t_powSpec << " s , " << t_powSpec*100/totalTime <<"%"<< std::endl;
+    std::cout << "FFT: " << t_powSpec << " s , " << t_powSpec*100/totalTime <<"%"<< std::endl;
     std::cout << "MelFiltering: " << t_mel << " s , " << t_mel*100/totalTime <<"%"<< std::endl;
     std::cout << "DCT Ceptrum: " << t_dctCep << " s , " << t_dctCep*100/totalTime <<"%"<< std::endl;
     std::cout << "Normalization: " << t_norm << " s , " << t_norm*100/totalTime <<"%"<< std::endl;
@@ -214,6 +214,14 @@ SP_RESULT FeatureExtractor::melCepstrum(std::vector<Feature> &cepstrums, \
         }
         cepstrums.push_back(tmpFeature);
     }
+    
+    //FEATURE_DATA* e_melCeps_data = (FEATURE_DATA *) malloc(colNum*cepsNum*sizeof(FEATURE_DATA));
+    //e_melCeps = (FEATURE_DATA **) malloc(colNum*sizeof(FEATURE_DATA *));
+    //size_t copyMemSize = cepsNum*sizeof(FEATURE_DATA);
+    //for(int i=0; i<colNum; i++){
+    //    e_melCeps[i] = &e_melCeps_data[i*cepsNum];
+    //    memcpy(e_melCeps[i], r_melLogSpec[i], copyMemSize);
+    //}
     
     cudaFree(d_melLogSpec_data);
     free(r_melLogSpec_data);

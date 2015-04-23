@@ -2,7 +2,7 @@ cmake_minimum_required (VERSION 2.8)
 project (Speech)
 find_package(CUDA)
 
-set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS}; -std=c++11)
+set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS}; -std=c++11 -O3)
 
 set (TERM_PRO_MAIN termPro_demo)
 add_executable(${TERM_PRO_MAIN} ${TERM_PRO_MAIN}.cpp)

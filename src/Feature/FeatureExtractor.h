@@ -41,6 +41,9 @@ class FeatureExtractor{
     READ_WRITE_DECLARE(FEATURE_DATA **, e_powSpec, ExPowSpec)
     READ_WRITE_DECLARE(FEATURE_DATA **, e_melLogSpec, ExMelLogSpec)
     READ_WRITE_DECLARE(FEATURE_DATA **, e_melWts, ExMelWts)
+    READ_WRITE_DECLARE(FEATURE_DATA **, e_melCeps, ExMelCeps)
+    READ_WRITE_DECLARE(FEATURE_DATA *, e_delta1, ExDelta1)
+    READ_WRITE_DECLARE(FEATURE_DATA *, e_delta2, ExDelta2)
     READ_WRITE_DECLARE(int , sampleRate, SampleRate);
     READ_WRITE_DECLARE(double , preEmpFactor, PreEmpFactor);
     READ_WRITE_DECLARE(double, winTime, WinTime);
@@ -255,6 +258,10 @@ public:
             free(e_melWts);
             free(e_melLogSpec[0]);
             free(e_melLogSpec);
+            //free(e_melCeps[0]);
+            //free(e_melCeps);
+            //free(e_delta1);
+            //free(e_delta2);
         }
     }
 
