@@ -43,8 +43,6 @@ void matrix_mul_kernel(d_type *sq_matrix_1, d_type *sq_matrix_2, d_type *sq_matr
 __global__
 void windowFFT_cu(FEATURE_DATA *d_SpeechSignal_real, FEATURE_DATA *d_SpeechSignal_imag, int frameNum, int frameSize, int f, int selIdx, double arg=PI);
 
-__global__ 
-void fft_cu_part(cp *d_SpeechSignal, int n, int f, double arg=PI);
 
 __device__ 
 void mulComplex(FEATURE_DATA *output, FEATURE_DATA *input1, FEATURE_DATA *input2);

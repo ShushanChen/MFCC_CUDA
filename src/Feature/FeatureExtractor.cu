@@ -52,7 +52,7 @@ SP_RESULT FeatureExtractor::exFeatures(const RawData *data, \
     //SP_RESULT res; 
     inital();
 
-    double startT, finishT;
+    double startT, finishT, initializeTime;
     double totalTime = 0;
 
     startT = wtime();
@@ -68,9 +68,9 @@ SP_RESULT FeatureExtractor::exFeatures(const RawData *data, \
     totalTime += t_window;
 
     startT = wtime();
-    powSpectrum(e_powSpec, e_windows);
+    initializeTime = powSpectrum(e_powSpec, e_windows);
     finishT = wtime();
-    double t_powSpec = finishT-startT;
+    double t_powSpec = finishT-startT-initializeTime;
     totalTime += t_powSpec;
     
 
@@ -97,7 +97,8 @@ SP_RESULT FeatureExtractor::exFeatures(const RawData *data, \
 
     doubleDelta(normalMelCeps);
 
-    std::cout << "Total Time: " << totalTime << std::endl;
+    std::cout << "Initialize Time: " << initializeTime << std::endl;
+    std::cout << "Total Time (not include InitializeTime) : " << totalTime << std::endl;
     std::cout << "PreEmp: " << t_preemp << " s , " << t_preemp*100/totalTime <<"%" <<std::endl;
     std::cout << "Windowing: " << t_window << " s , " << t_window*100/totalTime <<"%" << std::endl;
     std::cout << "PowerSpectrum: " << t_powSpec << " s , " << t_powSpec*100/totalTime <<"%"<< std::endl;
@@ -226,7 +227,7 @@ SP_RESULT FeatureExtractor::reverseMatrix(FEATURE_DATA **outMatrix, FEATURE_DATA
 
 
 
-SP_RESULT FeatureExtractor::powSpectrum(FEATURE_DATA **powSpec, \
+double FeatureExtractor::powSpectrum(FEATURE_DATA **powSpec, \
         FEATURE_DATA **windows) {
     
     int frameNum = e_frameNum, 
@@ -250,7 +251,7 @@ SP_RESULT FeatureExtractor::powSpectrum(FEATURE_DATA **powSpec, \
     memset(SpeechSignal_real, 0, memSize);
     memcpy(SpeechSignal_real, windows[0], memSize/2);
 
-    double startT, finishT, calcStartT, calcEndT;
+    double startT, finishT, initializeTime, calcStartT, calcEndT;
     calcStartT = startT = wtime();
     
     cudaMalloc( (void **) &d_SpeechSignal_real, memSize );
@@ -258,8 +259,9 @@ SP_RESULT FeatureExtractor::powSpectrum(FEATURE_DATA **powSpec, \
     d_SpeechSignal_imag = &d_SpeechSignal_real[elementNum];
 
     finishT = wtime();
-    std::cout << "Cuda Initialize Time: " << finishT-startT<< std::endl;
-    std::cout << "The select index is: " << selIdx << std::endl;
+    initializeTime = finishT-startT;
+    std::cout << "Cuda Initialize Time: " << initializeTime << std::endl;
+    //std::cout << "The select index is: " << selIdx << std::endl;
 
     dim3 dimGrid( ceil( (double)elementNum/blockSize ) );
     dim3 dimBlock(blockSize);
@@ -267,7 +269,7 @@ SP_RESULT FeatureExtractor::powSpectrum(FEATURE_DATA **powSpec, \
     cudaMemcpy(SpeechSignal_real, d_SpeechSignal_real, memSize, cudaMemcpyDeviceToHost);
     
     calcEndT = wtime();
-    printf("PowerSpectrum calculation time: %lf\n", calcEndT - calcStartT - (finishT - startT));
+    //printf("PowerSpectrum calculation time: %lf\n", calcEndT - calcStartT - (finishT - startT));
     
     
     // Calculate the Power Spectrum
@@ -292,7 +294,8 @@ SP_RESULT FeatureExtractor::powSpectrum(FEATURE_DATA **powSpec, \
     cudaFree(d_SpeechSignal_real);
     delete []SpeechSignal_real;
 
-    return SP_SUCCESS;
+    //return SP_SUCCESS;
+    return initializeTime;
 }
 
 
@@ -434,7 +437,7 @@ SP_RESULT FeatureExtractor::MatrixMul01(FEATURE_DATA ***p_melLog, \
     cudaMemcpy(h_melLog, d_melLog, memSize1, cudaMemcpyDeviceToHost);
     
     double endT = wtime();
-    printf("mel filtering calculation time %lf\n", endT-startT);
+    //printf("mel filtering calculation time %lf\n", endT-startT);
     
     melLog = (FEATURE_DATA **) malloc(nfilts * sizeof(FEATURE_DATA*));
     for(int i = 0;i < r;i++){
@@ -476,14 +479,14 @@ SP_RESULT FeatureExtractor::fft2MelLog(int nfft, \
     finishT = wtime();
     std::cout << "MatrixMul: "<<finishT-startT << std::endl;
 
-    FEATURE_DATA **melLog = *p_melLog;
-    startT = wtime();
-    for(int i = 0;i < nfilts;i++) 
-        for(int j = 0;j < e_frameNum;j++){
-            melLog[i][j] = log(0.0001+fabs(melLog[i][j]));
-        }
-    finishT = wtime();
-    std::cout << "MelLog: "<<finishT-startT << std::endl;
+    //FEATURE_DATA **melLog = *p_melLog;
+    //startT = wtime();
+    //for(int i = 0;i < nfilts;i++) 
+    //    for(int j = 0;j < e_frameNum;j++){
+    //        melLog[i][j] = log(0.0001+fabs(melLog[i][j]));
+    //    }
+    //finishT = wtime();
+    //std::cout << "MelLog: "<<finishT-startT << std::endl;
 
     return SP_SUCCESS;
 }

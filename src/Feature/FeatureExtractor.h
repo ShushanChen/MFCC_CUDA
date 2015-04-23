@@ -96,7 +96,8 @@ protected:
     SP_RESULT fftPadding(Matrix<double> & out_pads);
     
     SP_RESULT powSpectrum(Matrix<double> &powSpectrum, Matrix<double> &windows);
-    SP_RESULT powSpectrum(FEATURE_DATA **powSpectrum, FEATURE_DATA **windows);
+    //SP_RESULT powSpectrum(FEATURE_DATA **powSpectrum, FEATURE_DATA **windows);
+    double powSpectrum(FEATURE_DATA **powSpectrum, FEATURE_DATA **windows);
 
     SP_RESULT melCepstrum(std::vector<Feature> &cepstrums, \
             const Matrix<double> &melLogSpec, \

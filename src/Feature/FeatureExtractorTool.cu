@@ -154,14 +154,29 @@ void matrix_mul_kernel(d_type *sq_matrix_1, d_type *sq_matrix_2, d_type *sq_matr
     // Write the results back to global memory
     if(row >= dim_a) return;
 
-    if(col[0] < dim_c)
-        sq_matrix_result[rowIdx + col[0]] = val[0];
-    if(col[1] < dim_c)
-        sq_matrix_result[rowIdx + col[1]] = val[1];
-    if(col[2] < dim_c)
-        sq_matrix_result[rowIdx + col[2]] = val[2];
-    if(col[3] < dim_c)
-        sq_matrix_result[rowIdx + col[3]] = val[3];
+    //if(col[0] < dim_c)
+    //    sq_matrix_result[rowIdx + col[0]] = val[0];
+    //if(col[1] < dim_c)
+    //    sq_matrix_result[rowIdx + col[1]] = val[1];
+    //if(col[2] < dim_c)
+    //    sq_matrix_result[rowIdx + col[2]] = val[2];
+    //if(col[3] < dim_c)
+    //    sq_matrix_result[rowIdx + col[3]] = val[3];
+    
+
+    if(col[0] < dim_c){
+        sq_matrix_result[rowIdx + col[0]] = log(0.0001+fabs(val[0]));
+    }
+    if(col[1] < dim_c){
+        sq_matrix_result[rowIdx + col[1]] = log(0.0001+fabs(val[1]));
+    }
+    if(col[2] < dim_c){
+        sq_matrix_result[rowIdx + col[2]] = log(0.0001+fabs(val[2]));
+    }
+    if(col[3] < dim_c){
+        sq_matrix_result[rowIdx + col[3]] = log(0.0001+fabs(val[3]));
+    }
+
 }
 
 
@@ -236,47 +251,6 @@ void windowFFT_cu(FEATURE_DATA *d_SpeechSignal_real, FEATURE_DATA *d_SpeechSigna
     d_SpeechSignal_imag[tmpIdx] = s_signal_imag[selIdx][innerIdx];
 }
 
-__global__ 
-void fft_cu_part(cp *d_SpeechSignal, int n, int f, double arg){
-    int p, i, j, idx, rollIdx=0, oldRollIdx;
-    cp* d_signal[2]; 
-    d_signal[0] = d_SpeechSignal;
-    d_signal[1] = &d_SpeechSignal[n];
-    
-    int *finalRollIdx = (int *) &d_SpeechSignal[2*n];
-    
-    idx = blockDim.x*blockIdx.x + threadIdx.x;
-    
-    //double arg = pi;
-    double temp_cp[2], temp_wm[2], temp_w[2];
-    cp *temp = (cp *) temp_cp, *wm = (cp*)temp_wm, *w = (cp*)temp_w;
-    for(int k = n>>1; k; k>>=1, arg*=0.5){
-        rollIdx ^= 1;
-        oldRollIdx = rollIdx^1;
-        
-        //cp wm = std::polar(1.0,f*arg), w(1,0);
-        getPolarValue(1, f*arg, temp_wm);
-        *temp_w = 1;
-        *(temp_w+1) = 0;
-        
-        i = idx/k;
-        j = idx%k;
-        for(int t=0; t<i; t++){
-            //w = w*wm;
-            mulComplex(w,wm,w);
-        }
-        i = i*k;
-        p = i<<1;
-        if(p>=n) p-=n;
-    
-        //d_signal[rollIdx][i+j] = d_signal[oldRollIdx][p+j] + w*d_signal[oldRollIdx][p+k+j];
-        mulComplex(temp, w, &d_signal[oldRollIdx][p+k+j]); 
-        addComplex(&d_signal[rollIdx][i+j], temp, &d_signal[oldRollIdx][p+j]);
-        __syncthreads();
-    }
-    if(idx==0)
-        *finalRollIdx = rollIdx;
-}
 
 __device__ 
 void mulComplex(FEATURE_DATA *output, FEATURE_DATA *input1, FEATURE_DATA *input2){
